@@ -443,58 +443,31 @@
                 // Approach 1: Try with proper user agent and referer
                 const newWindow = window.open('', '_blank');
                 if (newWindow) {
-                    newWindow.document.write(`
-                        <html>
-                        <head>
-                            <title>Loading Stream...</title>
-                            <style>
-                                body { 
-                                    font-family: Arial, sans-serif; 
-                                    text-align: center; 
-                                    padding: 50px;
-                                    background: #f0f0f0;
-                                }
-                                .loading { 
-                                    font-size: 18px; 
-                                    margin-bottom: 20px; 
-                                }
-                                .redirect-btn {
-                                    background: #4CAF50;
-                                    color: white;
-                                    padding: 15px 30px;
-                                    border: none;
-                                    border-radius: 5px;
-                                    font-size: 16px;
-                                    cursor: pointer;
-                                    text-decoration: none;
-                                    display: inline-block;
-                                }
-                                .direct-link {
-                                    margin-top: 20px;
-                                    word-break: break-all;
-                                    background: #fff;
-                                    padding: 10px;
-                                    border-radius: 5px;
-                                }
-                            </style>
-                        </head>
-                        <body>
-                            <div class="loading">🎬 Preparing Stream...</div>
-                            <p>If the stream doesn't start automatically, click the button below:</p>
-                            <a href="${url}" class="redirect-btn" target="_self">Open Stream</a>
-                            <div class="direct-link">
-                                <strong>Direct Link:</strong><br>
-                                <a href="${url}" target="_self">${url}</a>
-                            </div>
-                            <script>
-                                // Auto-redirect after 2 seconds
-                                setTimeout(function() {
-                                    window.location.href = '${url}';
-                                }, 2000);
-                            </script>
-                        </body>
-                        </html>
-                    `);
+                    const htmlContent = '<html>' +
+                        '<head>' +
+                        '<title>Loading Stream...</title>' +
+                        '<style>' +
+                        'body { font-family: Arial, sans-serif; text-align: center; padding: 50px; background: #f0f0f0; }' +
+                        '.loading { font-size: 18px; margin-bottom: 20px; }' +
+                        '.redirect-btn { background: #4CAF50; color: white; padding: 15px 30px; border: none; border-radius: 5px; font-size: 16px; cursor: pointer; text-decoration: none; display: inline-block; }' +
+                        '.direct-link { margin-top: 20px; word-break: break-all; background: #fff; padding: 10px; border-radius: 5px; }' +
+                        '</style>' +
+                        '</head>' +
+                        '<body>' +
+                        '<div class="loading">🎬 Preparing Stream...</div>' +
+                        '<p>If the stream doesn\'t start automatically, click the button below:</p>' +
+                        '<a href="' + url + '" class="redirect-btn" target="_self">Open Stream</a>' +
+                        '<div class="direct-link">' +
+                        '<strong>Direct Link:</strong><br>' +
+                        '<a href="' + url + '" target="_self">' + url + '</a>' +
+                        '</div>' +
+                        '<script>' +
+                        'setTimeout(function() { window.location.href = "' + url + '"; }, 2000);' +
+                        '</script>' +
+                        '</body>' +
+                        '</html>';
+                    
+                    newWindow.document.write(htmlContent);
                     newWindow.document.close();
                 } else {
                     // Fallback if popup blocked
