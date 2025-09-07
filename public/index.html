@@ -306,10 +306,10 @@
     </div>
 
     <script>
-        // API URL - Update this to your deployed n8n webhook URL
+        // API URL - Use Vercel proxy to avoid CORS issues
         const API_URL = window.location.hostname === 'localhost' 
             ? 'http://localhost:5678/webhook/movie-scraper-villas'
-            : 'https://n8n-instance-vnyx.onrender.com/webhook/movie-scraper-villas';
+            : '/api/search';
         
         const searchForm = document.getElementById('searchForm');
         const searchInput = document.getElementById('searchInput');
