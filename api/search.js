@@ -37,6 +37,7 @@ export default async function handler(req, res) {
       body: JSON.stringify({
         query: query
       }),
+      timeout: 60000, // 60 second timeout for n8n workflow
     });
 
     if (!response.ok) {
@@ -50,6 +51,18 @@ export default async function handler(req, res) {
     
     // Handle different response formats from n8n
     let formattedResponse;
+    
+    // Check if n8n returned "Workflow was started" message (workflow not completing properly)
+    if (data.message === "Workflow was started" || 
+        (Array.isArray(data) && data[0]?.message === "Workflow was started")) {
+      
+      console.error('N8N workflow started but did not complete properly');
+      return res.status(500).json({
+        error: 'N8N workflow did not complete',
+        message: 'The movie search workflow started but did not return results. Check n8n workflow configuration.',
+        debug: data
+      });
+    }
     
     if (Array.isArray(data)) {
       // If n8n returns an array directly
