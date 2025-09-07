@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Movie Search - 5MovieRulz Integration</title>
+    <link rel="stylesheet" href="/static/css/style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+</head>
+<body>
+    <div class="container">
+        <!-- Header Section -->
+        <div class="header">
+            <h1 class="title">🎬 Movie Search</h1>
+            <p class="subtitle">Search movies from multiple sources including 5MovieRulz.villas</p>
+        </div>
+
+        <!-- Search Section -->
+        <div class="search-section">
+            <form id="searchForm" class="search-container">
+                <div class="search-input-container">
+                    <input 
+                        type="text" 
+                        id="searchInput" 
+                        class="search-input" 
+                        placeholder="Search for movies..."
+                        autocomplete="off"
+                    >
+                    <button type="submit" class="search-button">
+                        <i class="fas fa-search"></i>
+                    </button>
+                </div>
+            </form>
+
+            <!-- Popular Suggestions -->
+            <div class="suggestions">
+                <span class="suggestion-label">Popular:</span>
+                <span class="suggestion-tag" data-query="rrr">RRR</span>
+                <span class="suggestion-tag" data-query="avengers">Avengers</span>
+                <span class="suggestion-tag" data-query="batman">Batman</span>
+                <span class="suggestion-tag" data-query="spider-man">Spider-Man</span>
+                <span class="suggestion-tag" data-query="john wick">John Wick</span>
+            </div>
+        </div>
+
+        <!-- Loading Spinner -->
+        <div id="loadingSpinner" class="loading-container hidden">
+            <div class="loading-spinner"></div>
+            <p class="loading-text">Searching movies...</p>
+        </div>
+
+        <!-- Search Results -->
+        <div id="searchResults" class="results-section hidden">
+            <div class="results-header">
+                <h2 id="resultsTitle" class="results-title">Search Results</h2>
+                <p id="resultsCount" class="results-count">0 movies found</p>
+            </div>
+            
+            <div id="resultsContainer" class="results-grid">
+                <!-- Movie cards will be inserted here -->
+            </div>
+        </div>
+
+        <!-- No Results -->
+        <div id="noResults" class="no-results hidden">
+            <div class="no-results-icon">
+                <i class="fas fa-film"></i>
+            </div>
+            <h3>No movies found</h3>
+            <p>Try searching with different keywords or check the spelling.</p>
+        </div>
+
+        <!-- Footer -->
+        <div class="footer">
+            <p>Powered by FastAPI + N8N + 5MovieRulz.villas</p>
+        </div>
+    </div>
+
+    <script src="/static/js/app.js"></script>
+</body>
+</html>

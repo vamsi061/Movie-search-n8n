@@ -1,0 +1,429 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Movie Search - 5MovieRulz</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            color: #333;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+
+        .header h1 {
+            color: white;
+            font-size: 2.5rem;
+            margin-bottom: 10px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+        }
+
+        .header p {
+            color: rgba(255,255,255,0.9);
+            font-size: 1.1rem;
+        }
+
+        .search-container {
+            background: white;
+            border-radius: 15px;
+            padding: 30px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+            margin-bottom: 30px;
+        }
+
+        .search-form {
+            display: flex;
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+
+        .search-input {
+            flex: 1;
+            padding: 15px 20px;
+            border: 2px solid #e1e5e9;
+            border-radius: 10px;
+            font-size: 16px;
+            transition: border-color 0.3s;
+        }
+
+        .search-input:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .search-btn {
+            padding: 15px 30px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 10px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: transform 0.2s;
+        }
+
+        .search-btn:hover {
+            transform: translateY(-2px);
+        }
+
+        .search-btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: #666;
+        }
+
+        .spinner {
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #667eea;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 20px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .results-container {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            gap: 20px;
+        }
+
+        .movie-card {
+            background: white;
+            border-radius: 15px;
+            overflow: hidden;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+            transition: transform 0.3s, box-shadow 0.3s;
+        }
+
+        .movie-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 25px rgba(0,0,0,0.2);
+        }
+
+        .movie-poster {
+            width: 100%;
+            height: 200px;
+            object-fit: cover;
+            background: #f0f0f0;
+        }
+
+        .movie-info {
+            padding: 20px;
+        }
+
+        .movie-title {
+            font-size: 1.2rem;
+            font-weight: 600;
+            margin-bottom: 10px;
+            color: #333;
+            text-transform: capitalize;
+        }
+
+        .movie-meta {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin-bottom: 15px;
+        }
+
+        .meta-tag {
+            background: #f8f9fa;
+            padding: 4px 8px;
+            border-radius: 6px;
+            font-size: 0.85rem;
+            color: #666;
+        }
+
+        .meta-tag.year {
+            background: #e3f2fd;
+            color: #1976d2;
+        }
+
+        .meta-tag.quality {
+            background: #f3e5f5;
+            color: #7b1fa2;
+        }
+
+        .meta-tag.language {
+            background: #e8f5e8;
+            color: #388e3c;
+        }
+
+        .streaming-links {
+            margin-top: 15px;
+        }
+
+        .streaming-title {
+            font-size: 0.9rem;
+            font-weight: 600;
+            margin-bottom: 10px;
+            color: #555;
+        }
+
+        .stream-link {
+            display: inline-block;
+            padding: 8px 15px;
+            margin: 5px 5px 5px 0;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            text-decoration: none;
+            border-radius: 8px;
+            font-size: 0.85rem;
+            font-weight: 500;
+            transition: transform 0.2s;
+        }
+
+        .stream-link:hover {
+            transform: scale(1.05);
+        }
+
+        .stream-link.priority-1 {
+            background: linear-gradient(135deg, #4caf50 0%, #45a049 100%);
+        }
+
+        .stream-link.priority-2 {
+            background: linear-gradient(135deg, #ff9800 0%, #f57c00 100%);
+        }
+
+        .no-results {
+            text-align: center;
+            padding: 60px 20px;
+            color: white;
+        }
+
+        .no-results h3 {
+            font-size: 1.5rem;
+            margin-bottom: 10px;
+        }
+
+        .error-message {
+            background: #ffebee;
+            color: #c62828;
+            padding: 15px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            border-left: 4px solid #c62828;
+        }
+
+        .stats {
+            text-align: center;
+            color: white;
+            margin-bottom: 20px;
+            font-size: 1.1rem;
+        }
+
+        @media (max-width: 768px) {
+            .container {
+                padding: 10px;
+            }
+
+            .header h1 {
+                font-size: 2rem;
+            }
+
+            .search-form {
+                flex-direction: column;
+            }
+
+            .search-btn {
+                width: 100%;
+            }
+
+            .results-container {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🎬 Movie Search</h1>
+            <p>Search and stream movies from 5MovieRulz</p>
+        </div>
+
+        <div class="search-container">
+            <form class="search-form" id="searchForm">
+                <input 
+                    type="text" 
+                    class="search-input" 
+                    id="searchInput" 
+                    placeholder="Search for movies (e.g., RRR, Avengers, Batman...)"
+                    required
+                >
+                <button type="submit" class="search-btn" id="searchBtn">
+                    Search Movies
+                </button>
+            </form>
+        </div>
+
+        <div id="loadingContainer" class="loading" style="display: none;">
+            <div class="spinner"></div>
+            <p>Searching for movies...</p>
+        </div>
+
+        <div id="errorContainer" style="display: none;"></div>
+
+        <div id="statsContainer" class="stats" style="display: none;"></div>
+
+        <div id="resultsContainer" class="results-container"></div>
+
+        <div id="noResultsContainer" class="no-results" style="display: none;">
+            <h3>No movies found</h3>
+            <p>Try searching with different keywords</p>
+        </div>
+    </div>
+
+    <script>
+        // You can change this to your deployed n8n webhook URL
+        const API_URL = 'http://localhost:5678/webhook/movie-scraper-villas';
+        
+        const searchForm = document.getElementById('searchForm');
+        const searchInput = document.getElementById('searchInput');
+        const searchBtn = document.getElementById('searchBtn');
+        const loadingContainer = document.getElementById('loadingContainer');
+        const errorContainer = document.getElementById('errorContainer');
+        const statsContainer = document.getElementById('statsContainer');
+        const resultsContainer = document.getElementById('resultsContainer');
+        const noResultsContainer = document.getElementById('noResultsContainer');
+
+        searchForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const query = searchInput.value.trim();
+            if (!query) return;
+
+            await searchMovies(query);
+        });
+
+        async function searchMovies(query) {
+            showLoading();
+            hideError();
+            hideResults();
+
+            try {
+                const response = await fetch(`${API_URL}?query=${encodeURIComponent(query)}`);
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+
+                const data = await response.json();
+                hideLoading();
+
+                if (data.results && data.results.length > 0) {
+                    displayResults(data.results, data.total, query);
+                } else {
+                    showNoResults();
+                }
+
+            } catch (error) {
+                hideLoading();
+                showError(`Failed to search movies: ${error.message}`);
+                console.error('Search error:', error);
+            }
+        }
+
+        function showLoading() {
+            loadingContainer.style.display = 'block';
+            searchBtn.disabled = true;
+            searchBtn.textContent = 'Searching...';
+        }
+
+        function hideLoading() {
+            loadingContainer.style.display = 'none';
+            searchBtn.disabled = false;
+            searchBtn.textContent = 'Search Movies';
+        }
+
+        function showError(message) {
+            errorContainer.innerHTML = `<div class="error-message">${message}</div>`;
+            errorContainer.style.display = 'block';
+        }
+
+        function hideError() {
+            errorContainer.style.display = 'none';
+        }
+
+        function hideResults() {
+            resultsContainer.innerHTML = '';
+            statsContainer.style.display = 'none';
+            noResultsContainer.style.display = 'none';
+        }
+
+        function showNoResults() {
+            noResultsContainer.style.display = 'block';
+        }
+
+        function displayResults(movies, total, query) {
+            statsContainer.innerHTML = `Found ${total} movies for "${query}"`;
+            statsContainer.style.display = 'block';
+            resultsContainer.innerHTML = movies.map(movie => createMovieCard(movie)).join('');
+        }
+
+        function createMovieCard(movie) {
+            const posterUrl = movie.poster || 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMzAwIiBoZWlnaHQ9IjIwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMTAwJSIgaGVpZ2h0PSIxMDAlIiBmaWxsPSIjZjBmMGYwIi8+PHRleHQgeD0iNTAlIiB5PSI1MCUiIGZvbnQtZmFtaWx5PSJBcmlhbCIgZm9udC1zaXplPSIxNCIgZmlsbD0iIzk5OSIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZHk9Ii4zZW0iPk5vIEltYWdlPC90ZXh0Pjwvc3ZnPg==';
+            
+            const streamingLinks = movie.streamingUrls && movie.streamingUrls.length > 0 
+                ? movie.streamingUrls.map(stream => 
+                    `<a href="${stream.url}" target="_blank" class="stream-link priority-${stream.priority}">
+                        ${stream.service === 'streamlare' ? '🎬 StreamLare' : '📺 Stream'} (${stream.quality})
+                    </a>`
+                  ).join('')
+                : '<span style="color: #999; font-size: 0.85rem;">No streaming links available</span>';
+
+            return `
+                <div class="movie-card">
+                    <img src="${posterUrl}" alt="${movie.title}" class="movie-poster" 
+                         onerror="this.src='data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMzAwIiBoZWlnaHQ9IjIwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMTAwJSIgaGVpZ2h0PSIxMDAlIiBmaWxsPSIjZjBmMGYwIi8+PHRleHQgeD0iNTAlIiB5PSI1MCUiIGZvbnQtZmFtaWx5PSJBcmlhbCIgZm9udC1zaXplPSIxNCIgZmlsbD0iIzk5OSIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZHk9Ii4zZW0iPk5vIEltYWdlPC90ZXh0Pjwvc3ZnPg=='">
+                    <div class="movie-info">
+                        <h3 class="movie-title">${movie.title}</h3>
+                        <div class="movie-meta">
+                            ${movie.year !== 'N/A' ? `<span class="meta-tag year">${movie.year}</span>` : ''}
+                            ${movie.quality !== 'Unknown' ? `<span class="meta-tag quality">${movie.quality}</span>` : ''}
+                            ${movie.language !== 'Unknown' ? `<span class="meta-tag language">${movie.language}</span>` : ''}
+                        </div>
+                        <div class="streaming-links">
+                            <div class="streaming-title">🎬 Watch Online:</div>
+                            ${streamingLinks}
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        // Auto-focus search input
+        searchInput.focus();
+    </script>
+</body>
+</html>

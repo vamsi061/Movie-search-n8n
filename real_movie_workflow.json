@@ -1,0 +1,271 @@
+{
+  "name": "Real Movie Search Workflow",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "GET",
+        "path": "search-movies",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "webhook-start",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [
+        240,
+        300
+      ],
+      "webhookId": "movie-scraper-villas"
+    },
+    {
+      "parameters": {
+        "values": {
+          "string": [
+            {
+              "name": "query",
+              "value": "={{ $node.Webhook.json.query || 'rrr' }}"
+            },
+            {
+              "name": "max_results",
+              "value": "={{ $node.Webhook.json.max_results || 20 }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "extract-params",
+      "name": "Extract Parameters",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 1,
+      "position": [
+        460,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "url": "https://www.5movierulz.villas/",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "s",
+              "value": "={{ $node['Extract Parameters'].json.query }}"
+            }
+          ]
+        },
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "User-Agent",
+              "value": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+            },
+            {
+              "name": "Accept",
+              "value": "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8"
+            },
+            {
+              "name": "Accept-Language",
+              "value": "en-US,en;q=0.5"
+            },
+            {
+              "name": "Accept-Encoding",
+              "value": "gzip, deflate, br"
+            },
+            {
+              "name": "Connection",
+              "value": "keep-alive"
+            },
+            {
+              "name": "Upgrade-Insecure-Requests",
+              "value": "1"
+            },
+            {
+              "name": "Referer",
+              "value": "https://www.5movierulz.villas/"
+            }
+          ]
+        },
+        "options": {
+          "timeout": 30000,
+          "redirect": {
+            "redirect": {}
+          },
+          "response": {
+            "response": {
+              "neverError": true
+            }
+          }
+        }
+      },
+      "id": "fetch-search-page",
+      "name": "Fetch Search Results",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [
+        680,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Parse movie search results from 5movierulz.villas\nconst html = $input.first().json.data;\n\nif (!html) {\n  return [{ error: 'No HTML data received' }];\n}\n\nconsole.log('Parsing search results from 5movierulz.villas...');\n\nconst movies = [];\n\ntry {\n  // First, look for search results container\n  let searchContent = html;\n  \n  // Try to find the main content area that contains search results\n  const contentMatch = html.match(/<main[^>]*>([\\s\\S]*?)<\\/main>/i) || \n                      html.match(/<div[^>]*class=\"[^\"]*content[^\"]*\"[^>]*>([\\s\\S]*?)<\\/div>/i) ||\n                      html.match(/<div[^>]*id=\"[^\"]*content[^\"]*\"[^>]*>([\\s\\S]*?)<\\/div>/i);\n  \n  if (contentMatch) {\n    searchContent = contentMatch[1];\n    console.log('Found main content area');\n  }\n  \n  // Look for movie post containers with various patterns\n  const moviePatterns = [\n    // Article with post class\n    /<article[^>]*class=\"[^\"]*post[^\"]*\"[^>]*>([\\s\\S]*?)<\\/article>/gi,\n    // Div with post class\n    /<div[^>]*class=\"[^\"]*post[^\"]*\"[^>]*>([\\s\\S]*?)<\\/div>/gi,\n    // Movie item containers\n    /<div[^>]*class=\"[^\"]*movie[^\"]*\"[^>]*>([\\s\\S]*?)<\\/div>/gi,\n    // Item containers\n    /<div[^>]*class=\"[^\"]*item[^\"]*\"[^>]*>([\\s\\S]*?)<\\/div>/gi\n  ];\n  \n  let movieMatches = [];\n  \n  for (const pattern of moviePatterns) {\n    const matches = [...searchContent.matchAll(pattern)];\n    if (matches.length > 0) {\n      movieMatches = matches;\n      console.log(`Found ${matches.length} movie containers with pattern`);\n      break;\n    }\n  }\n  \n  for (const match of movieMatches) {\n    try {\n      const movieHtml = match[1] || match[0];\n      \n      // Extract title - try multiple patterns\n      const titlePatterns = [\n        /<h[1-6][^>]*>\\s*<a[^>]*>([^<]+)<\\/a>\\s*<\\/h[1-6]>/i,\n        /<a[^>]*class=\"[^\"]*title[^\"]*\"[^>]*>([^<]+)<\\/a>/i,\n        /<h[1-6][^>]*><a[^>]*>([^<]+)<\\/a><\\/h[1-6]>/i,\n        /<a[^>]*title=\"([^\"]+)\"[^>]*>/i,\n        /<h[1-6][^>]*>([^<]+)<\\/h[1-6]>/i\n      ];\n      \n      let titleMatch = null;\n      for (const pattern of titlePatterns) {\n        titleMatch = movieHtml.match(pattern);\n        if (titleMatch) break;\n      }\n      \n      // Extract URL - try multiple patterns\n      const urlPatterns = [\n        /<a[^>]*href=\"([^\"]+)\"[^>]*>[\\s\\S]*?<\\/a>/i,\n        /<a[^>]*href=\"([^\"]+)\"[^>]*>/i\n      ];\n      \n      let urlMatch = null;\n      for (const pattern of urlPatterns) {\n        urlMatch = movieHtml.match(pattern);\n        if (urlMatch) break;\n      }\n      \n      // Extract poster image\n      const posterMatch = movieHtml.match(/<img[^>]*src=\"([^\"]+)\"[^>]*>/i);\n      \n      // Extract year\n      const yearMatch = movieHtml.match(/\\b(20[0-9]{2})\\b/) || \n                       movieHtml.match(/\\((20[0-9]{2})\\)/);\n      \n      // Extract quality\n      const qualityMatch = movieHtml.match(/\\b(HD|HDRip|BluRay|DVDRip|CAM|TS|WebRip|720p|1080p|4K|HDCAM|HDTS)\\b/i);\n      \n      // Extract language\n      const languageMatch = movieHtml.match(/\\b(Hindi|English|Tamil|Telugu|Malayalam|Kannada|Bengali|Punjabi|Marathi|Dual\\s*Audio)\\b/i);\n      \n      if (titleMatch && urlMatch) {\n        const title = titleMatch[1].trim();\n        let url = urlMatch[1];\n        \n        // Skip navigation links and non-movie URLs\n        if (title.toLowerCase().includes('home') || \n            title.toLowerCase().includes('featured') ||\n            title.toLowerCase().includes('category') ||\n            title.toLowerCase().includes('movierulz') ||\n            url.includes('/category/') ||\n            url.includes('?sort=') ||\n            url === 'https://www.5movierulz.villas' ||\n            url === 'https://www.5movierulz.villas/') {\n          continue;\n        }\n        \n        // Make sure URL is absolute\n        if (url.startsWith('/')) {\n          url = 'https://www.5movierulz.villas' + url;\n        } else if (!url.startsWith('http')) {\n          url = 'https://www.5movierulz.villas/' + url;\n        }\n        \n        // Make sure poster URL is absolute\n        let poster = posterMatch ? posterMatch[1] : '';\n        if (poster && poster.startsWith('/')) {\n          poster = 'https://www.5movierulz.villas' + poster;\n        }\n        \n        const movie = {\n          title: title,\n          url: url,\n          source: '5movierulz.villas',\n          year: yearMatch ? yearMatch[1] : 'Unknown',\n          poster: poster,\n          quality: qualityMatch ? qualityMatch[1] : 'Unknown',\n          language: languageMatch ? languageMatch[1] : 'Unknown'\n        };\n        \n        movies.push(movie);\n        console.log(`Extracted movie: ${title}`);\n      }\n    } catch (e) {\n      console.log('Error parsing individual movie:', e.message);\n    }\n  }\n  \n  // If still no movies found, try a more aggressive search\n  if (movies.length === 0) {\n    console.log('No movies found with structured parsing, trying aggressive search...');\n    \n    // Look for any links that might be movies\n    const allLinks = [...html.matchAll(/<a[^>]*href=\"([^\"]+)\"[^>]*>([^<]+)<\\/a>/gi)];\n    \n    for (const linkMatch of allLinks) {\n      const url = linkMatch[1];\n      const title = linkMatch[2].trim();\n      \n      // Filter for movie-like URLs and titles\n      if ((url.includes('/20') || url.includes('movie') || url.includes('watch') || \n           title.match(/\\b20[0-9]{2}\\b/) || title.toLowerCase().includes('movie')) &&\n          !url.includes('/category/') && !url.includes('?sort=') &&\n          !title.toLowerCase().includes('featured') &&\n          !title.toLowerCase().includes('home') &&\n          !title.toLowerCase().includes('movierulz') &&\n          url !== 'https://www.5movierulz.villas' &&\n          url !== 'https://www.5movierulz.villas/') {\n        \n        let fullUrl = url;\n        if (url.startsWith('/')) {\n          fullUrl = 'https://www.5movierulz.villas' + url;\n        } else if (!url.startsWith('http')) {\n          fullUrl = 'https://www.5movierulz.villas/' + url;\n        }\n        \n        const movie = {\n          title: title,\n          url: fullUrl,\n          source: '5movierulz.villas',\n          year: title.match(/\\b(20[0-9]{2})\\b/) ? title.match(/\\b(20[0-9]{2})\\b/)[1] : 'Unknown',\n          poster: '',\n          quality: title.match(/\\b(HD|HDRip|BluRay|DVDRip|CAM|TS|WebRip|720p|1080p|4K)\\b/i) ? \n                  title.match(/\\b(HD|HDRip|BluRay|DVDRip|CAM|TS|WebRip|720p|1080p|4K)\\b/i)[1] : 'Unknown',\n          language: title.match(/\\b(Hindi|English|Tamil|Telugu|Malayalam|Kannada|Bengali|Punjabi|Marathi)\\b/i) ? \n                   title.match(/\\b(Hindi|English|Tamil|Telugu|Malayalam|Kannada|Bengali|Punjabi|Marathi)\\b/i)[1] : 'Unknown'\n        };\n        \n        movies.push(movie);\n        \n        if (movies.length >= 15) break; // Limit results\n      }\n    }\n  }\n  \n  console.log(`Total movies extracted: ${movies.length}`);\n  \n  if (movies.length === 0) {\n    return [{ \n      error: 'No movies found in search results', \n      debug: {\n        htmlLength: html.length,\n        hasArticles: html.includes('<article'),\n        hasMovieLinks: html.includes('movie'),\n        hasSearchResults: html.includes('search'),\n        sampleHtml: html.substring(0, 1000)\n      }\n    }];\n  }\n  \n  // Return each movie as a separate item for processing\n  return movies;\n  \n} catch (error) {\n  console.error('Error parsing movies:', error);\n  return [{ \n    error: 'Failed to parse movies: ' + error.message,\n    debug: {\n      htmlLength: html ? html.length : 0,\n      errorStack: error.stack\n    }\n  }];\n}"
+      },
+      "id": "parse-movies",
+      "name": "Parse Movies",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        900,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "url": "={{ $json.url }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "User-Agent",
+              "value": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+            },
+            {
+              "name": "Accept",
+              "value": "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8"
+            },
+            {
+              "name": "Referer",
+              "value": "https://www.5movierulz.villas/"
+            }
+          ]
+        },
+        "options": {
+          "timeout": 15000,
+          "response": {
+            "response": {
+              "neverError": true
+            }
+          }
+        }
+      },
+      "id": "fetch-movie-page",
+      "name": "Fetch Movie Page",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [
+        1120,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Extract streaming URLs from movie page\nconst movieData = $input.first().json;\nconst httpResponse = $input.first().json;\n\nlet result = {\n  title: movieData.title || 'Unknown',\n  originalUrl: movieData.url || '',\n  source: '5movierulz.villas',\n  year: movieData.year || 'Unknown',\n  poster: movieData.poster || '',\n  quality: movieData.quality || 'Unknown',\n  language: movieData.language || 'Unknown',\n  streamingUrls: [],\n  downloadUrls: [],\n  error: null\n};\n\ntry {\n  if (!httpResponse.data) {\n    result.error = 'No page data received';\n    return result;\n  }\n  \n  const html = httpResponse.data;\n  console.log(`Extracting streaming URLs for: ${result.title}`);\n  \n  // Common streaming URL patterns for movie sites\n  const streamingPatterns = [\n    // Direct streaming links\n    /href=[\"']([^\"']*(?:stream|watch|play)[^\"']*)[\"']/gi,\n    /href=[\"']([^\"']*\\.(?:mp4|mkv|avi|m3u8|mpd)[^\"']*)[\"']/gi,\n    \n    // Embed links\n    /src=[\"']([^\"']*(?:embed|player)[^\"']*)[\"']/gi,\n    /href=[\"']([^\"']*(?:embed|player)[^\"']*)[\"']/gi,\n    \n    // Common streaming domains\n    /href=[\"']([^\"']*(?:streamtape|doodstream|mixdrop|upstream|streamlare|streamwish)[^\"']*)[\"']/gi,\n    \n    // Download links\n    /href=[\"']([^\"']*(?:download|dl)[^\"']*)[\"']/gi,\n    \n    // Google Drive, Mega, etc.\n    /href=[\"']([^\"']*(?:drive\\.google|mega\\.nz|mediafire)[^\"']*)[\"']/gi\n  ];\n  \n  const foundUrls = new Set();\n  \n  // Extract URLs using patterns\n  for (const pattern of streamingPatterns) {\n    let match;\n    while ((match = pattern.exec(html)) !== null) {\n      let url = match[1];\n      \n      // Clean and validate URL\n      if (url.startsWith('//')) {\n        url = 'https:' + url;\n      } else if (url.startsWith('/')) {\n        url = 'https://www.5movierulz.villas' + url;\n      }\n      \n      // Skip invalid or unwanted URLs\n      if (url.includes('javascript:') || url.includes('mailto:') || \n          url.includes('#') || url.length < 10) {\n        continue;\n      }\n      \n      foundUrls.add(url);\n    }\n  }\n  \n  // Also look for iframe sources\n  const iframeMatches = html.match(/<iframe[^>]*src=[\"']([^\"']+)[\"'][^>]*>/gi) || [];\n  for (const iframe of iframeMatches) {\n    const srcMatch = iframe.match(/src=[\"']([^\"']+)[\"']/i);\n    if (srcMatch) {\n      let url = srcMatch[1];\n      if (url.startsWith('//')) {\n        url = 'https:' + url;\n      } else if (url.startsWith('/')) {\n        url = 'https://www.5movierulz.villas' + url;\n      }\n      foundUrls.add(url);\n    }\n  }\n  \n  // Categorize URLs\n  for (const url of foundUrls) {\n    if (url.includes('stream') || url.includes('watch') || url.includes('play') || \n        url.includes('embed') || url.includes('player') ||\n        url.includes('streamtape') || url.includes('doodstream') || \n        url.includes('mixdrop') || url.includes('upstream')) {\n      result.streamingUrls.push({\n        url: url,\n        type: 'streaming',\n        quality: 'Unknown'\n      });\n    } else if (url.includes('download') || url.includes('dl') ||\n               url.includes('drive.google') || url.includes('mega.nz') || \n               url.includes('mediafire')) {\n      result.downloadUrls.push({\n        url: url,\n        type: 'download',\n        quality: 'Unknown'\n      });\n    }\n  }\n  \n  // Look for quality indicators in the page\n  const qualityMatches = html.match(/\\b(720p|1080p|4K|HD|HDRip|BluRay|DVDRip|WebRip)\\b/gi) || [];\n  if (qualityMatches.length > 0) {\n    result.quality = qualityMatches[0];\n  }\n  \n  console.log(`Found ${result.streamingUrls.length} streaming URLs and ${result.downloadUrls.length} download URLs`);\n  \n  if (result.streamingUrls.length === 0 && result.downloadUrls.length === 0) {\n    result.error = 'No streaming or download URLs found';\n    // Add some debug info\n    result.debug = {\n      pageLength: html.length,\n      hasIframes: html.includes('<iframe'),\n      hasStreamLinks: html.toLowerCase().includes('stream'),\n      sampleContent: html.substring(0, 500)\n    };\n  }\n  \n} catch (error) {\n  console.error('Error extracting streaming URLs:', error);\n  result.error = 'Failed to extract URLs: ' + error.message;\n}\n\nreturn result;"
+      },
+      "id": "extract-streaming-urls",
+      "name": "Extract Streaming URLs",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1340,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ {\n  \"query\": $('Extract Parameters').first().json.query,\n  \"results\": $input.all(),\n  \"total\": $input.all().length,\n  \"message\": \"Found \" + $input.all().length + \" movies with streaming URLs from 5movierulz.villas\",\n  \"source\": \"5movierulz.villas\",\n  \"timestamp\": new Date().toISOString()\n} }}",
+        "options": {}
+      },
+      "id": "respond-results",
+      "name": "Respond",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [
+        1560,
+        300
+      ]
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Extract Parameters",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract Parameters": {
+      "main": [
+        [
+          {
+            "node": "Fetch Search Results",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch Search Results": {
+      "main": [
+        [
+          {
+            "node": "Parse Movies",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Movies": {
+      "main": [
+        [
+          {
+            "node": "Fetch Movie Page",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch Movie Page": {
+      "main": [
+        [
+          {
+            "node": "Extract Streaming URLs",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract Streaming URLs": {
+      "main": [
+        [
+          {
+            "node": "Respond",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "1",
+  "meta": {
+    "templateCredsSetupCompleted": true
+  },
+  "id": "real-movie-search-workflow",
+  "tags": []
+}
