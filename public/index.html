@@ -424,6 +424,15 @@
                         <div class="streaming-links">
                             <div class="streaming-title">🎬 Watch Online:</div>
                             ${streamingLinks}
+                            <div style="margin-top: 15px;">
+                                <div class="streaming-title">📥 Download Options:</div>
+                                <a href="javascript:void(0)" onclick="downloadMovie('${movie.title.replace(/'/g, "\\'")}', '${movie.url}')" class="stream-link" style="background: linear-gradient(135deg, #2196F3 0%, #1976D2 100%);">
+                                    📥 Download Movie
+                                </a>
+                                <a href="${movie.url}" target="_blank" class="stream-link" style="background: linear-gradient(135deg, #FF5722 0%, #D84315 100%);">
+                                    🔗 Open Movie Page
+                                </a>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -461,6 +470,84 @@
                 // For other streaming services, open immediately
                 window.open(url, '_blank', 'noopener,noreferrer');
             }
+        }
+
+        // Function to handle movie downloads
+        function downloadMovie(title, moviePageUrl) {
+            console.log('Attempting to download:', title, 'from:', moviePageUrl);
+            
+            // Show loading state
+            event.target.innerHTML = '⏳ Preparing Download...';
+            event.target.style.opacity = '0.7';
+            
+            // Try to find direct download links via our proxy
+            fetch('/api/download?url=' + encodeURIComponent(moviePageUrl))
+                .then(response => response.json())
+                .then(data => {
+                    if (data.downloadLinks && data.downloadLinks.length > 0) {
+                        // Show download options
+                        showDownloadOptions(title, data.downloadLinks);
+                    } else {
+                        // Fallback: open movie page for manual download
+                        alert('Direct download not available. Opening movie page for manual download.');
+                        window.open(moviePageUrl, '_blank');
+                    }
+                })
+                .catch(error => {
+                    console.error('Download error:', error);
+                    alert('Download service temporarily unavailable. Opening movie page instead.');
+                    window.open(moviePageUrl, '_blank');
+                })
+                .finally(() => {
+                    // Reset button
+                    event.target.innerHTML = '📥 Download Movie';
+                    event.target.style.opacity = '1';
+                });
+        }
+
+        // Function to show download options
+        function showDownloadOptions(title, downloadLinks) {
+            const modal = document.createElement('div');
+            modal.style.cssText = `
+                position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+                background: rgba(0,0,0,0.8); z-index: 10000; display: flex;
+                align-items: center; justify-content: center;
+            `;
+            
+            const content = document.createElement('div');
+            content.style.cssText = `
+                background: white; padding: 30px; border-radius: 15px;
+                max-width: 500px; width: 90%; max-height: 80vh; overflow-y: auto;
+            `;
+            
+            content.innerHTML = `
+                <h3 style="margin-bottom: 20px;">📥 Download: ${title}</h3>
+                <div style="margin-bottom: 20px;">
+                    ${downloadLinks.map(link => `
+                        <a href="${link.url}" target="_blank" style="
+                            display: block; padding: 10px 15px; margin: 10px 0;
+                            background: #4CAF50; color: white; text-decoration: none;
+                            border-radius: 8px; text-align: center;
+                        ">
+                            📥 ${link.quality || 'Download'} - ${link.size || 'Unknown Size'}
+                        </a>
+                    `).join('')}
+                </div>
+                <button onclick="this.parentElement.parentElement.remove()" style="
+                    background: #f44336; color: white; border: none; padding: 10px 20px;
+                    border-radius: 5px; cursor: pointer; width: 100%;
+                ">Close</button>
+            `;
+            
+            modal.appendChild(content);
+            document.body.appendChild(modal);
+            
+            // Close on background click
+            modal.addEventListener('click', function(e) {
+                if (e.target === modal) {
+                    modal.remove();
+                }
+            });
         }
     </script>
 </body>
