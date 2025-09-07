@@ -1,18 +1,21 @@
 {
-  "name": "Working Movie Scraper - 5movierulz.chat",
+  "name": "My workflow",
   "nodes": [
     {
       "parameters": {
-        "httpMethod": "GET",
-        "path": "search-movies",
+        "httpMethod": "POST",
+        "path": "movie-scraper-villas",
         "responseMode": "responseNode",
         "options": {}
       },
-      "id": "webhook-start",
-      "name": "Webhook",
+      "id": "6c372884-8863-482d-9f68-3caaa70c695c",
+      "name": "Webhook Trigger",
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 1,
-      "position": [240, 300],
+      "position": [
+        -2800,
+        3168
+      ],
       "webhookId": "movie-scraper-villas"
     },
     {
@@ -21,21 +24,20 @@
           "string": [
             {
               "name": "query",
-              "value": "={{ $node.Webhook.json.query || 'rrr' }}"
-            },
-            {
-              "name": "max_results",
-              "value": "={{ $node.Webhook.json.max_results || 20 }}"
+              "value": "={{ $json.body.query }}"
             }
           ]
         },
         "options": {}
       },
-      "id": "extract-params",
+      "id": "3d3dfdb4-8caf-42f4-8198-a48af320ff3a",
       "name": "Extract Parameters",
       "type": "n8n-nodes-base.set",
       "typeVersion": 1,
-      "position": [460, 300]
+      "position": [
+        -2464,
+        3200
+      ]
     },
     {
       "parameters": {
@@ -83,7 +85,6 @@
           ]
         },
         "options": {
-          "timeout": 30000,
           "redirect": {
             "redirect": {}
           },
@@ -91,24 +92,31 @@
             "response": {
               "neverError": true
             }
-          }
+          },
+          "timeout": 30000
         }
       },
-      "id": "fetch-search-page",
-      "name": "Fetch Search Results",
+      "id": "a6504fc2-7b49-499b-9f1c-22990ff60a7c",
+      "name": "Fetch Search Results1",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.1,
-      "position": [680, 300]
+      "position": [
+        -2256,
+        3200
+      ]
     },
     {
       "parameters": {
         "jsCode": "// Parse movie search results from 5movierulz.chat based on working Playwright code\nconst html = $input.first().json.data;\nconst query = $('Extract Parameters').first().json.query.toLowerCase();\n\nif (!html) {\n  return [{ error: 'No HTML data received' }];\n}\n\nconsole.log(`Parsing search results for query: ${query}`);\n\nconst movies = [];\nconst baseUrl = 'https://www.5movierulz.villas';\n\ntry {\n  // Look for film elements - this is the key selector from working code\n  const filmElementPattern = /<div[^>]*class=\"[^\"]*film[^\"]*\"[^>]*>([\\s\\S]*?)<\\/div>/gi;\n  const filmMatches = [...html.matchAll(filmElementPattern)];\n  \n  console.log(`Found ${filmMatches.length} film elements`);\n  \n  for (let i = 0; i < filmMatches.length; i++) {\n    const filmHtml = filmMatches[i][1] || filmMatches[i][0];\n    \n    try {\n      // Check if this film element contains our query\n      if (!filmHtml.toLowerCase().includes(query)) {\n        continue;\n      }\n      \n      console.log(`Processing film element ${i+1} (contains '${query}')`);\n      \n      // Extract all links from this film element\n      const linkPattern = /<a[^>]*href=\"([^\"]+)\"[^>]*>/gi;\n      const linkMatches = [...filmHtml.matchAll(linkPattern)];\n      \n      // Extract all images from this film element\n      const imgPattern = /<img[^>]*src=\"([^\"]+)\"[^>]*(?:alt=\"([^\"]*)\"|[^>]*)>/gi;\n      const imgMatches = [...filmHtml.matchAll(imgPattern)];\n      \n      // Get all text content to find full titles\n      const textContent = filmHtml.replace(/<[^>]*>/g, ' ').replace(/\\s+/g, ' ').trim();\n      const textLines = textContent.split('\\n').map(line => line.trim()).filter(line => line.length > 0);\n      \n      // Process each link\n      for (let linkIdx = 0; linkIdx < linkMatches.length; linkIdx++) {\n        const linkHref = linkMatches[linkIdx][1];\n        if (!linkHref) continue;\n        \n        let movieTitle = '';\n        let posterUrl = '';\n        \n        // Get corresponding image if available\n        if (linkIdx < imgMatches.length) {\n          const imgSrc = imgMatches[linkIdx][1];\n          const imgAlt = imgMatches[linkIdx][2] || '';\n          \n          if (imgSrc && !imgSrc.startsWith('data:')) {\n            posterUrl = imgSrc.startsWith('http') ? imgSrc : baseUrl + (imgSrc.startsWith('/') ? imgSrc : '/' + imgSrc);\n          }\n          \n          if (imgAlt) {\n            movieTitle = imgAlt;\n          }\n        }\n        \n        // Try to find full title from text content\n        if (!movieTitle) {\n          for (const line of textLines) {\n            const lineLower = line.toLowerCase();\n            // Look for lines that contain query and movie indicators\n            if (lineLower.includes(query) && \n                (line.match(/\\b(19|20)\\d{2}\\b/) || \n                 lineLower.includes('hdrip') || \n                 lineLower.includes('brrip') || \n                 lineLower.includes('movie') || \n                 lineLower.includes('watch'))) {\n              movieTitle = line;\n              console.log(`Found full title: ${movieTitle}`);\n              break;\n            }\n          }\n        }\n        \n        // Fallback: extract from URL\n        if (!movieTitle) {\n          const urlParts = linkHref.split('/');\n          for (const part of urlParts) {\n            if (part.toLowerCase().includes(query)) {\n              movieTitle = part.replace(/-/g, ' ').replace(/movie watch online free/gi, '').trim();\n              break;\n            }\n          }\n        }\n        \n        // Enhance title based on URL patterns (from working code)\n        if (movieTitle && linkHref) {\n          const hrefLower = linkHref.toLowerCase();\n          \n          // Language detection\n          if (hrefLower.includes('malayalam')) {\n            movieTitle = movieTitle.replace(/Movie Watch Online Free/gi, 'Malayalam Movie');\n          } else if (hrefLower.includes('telugu')) {\n            movieTitle = movieTitle.replace(/Movie Watch Online Free/gi, 'Telugu Movie');\n          } else if (hrefLower.includes('tamil')) {\n            movieTitle = movieTitle.replace(/Movie Watch Online Free/gi, 'Tamil Movie');\n          } else if (hrefLower.includes('english')) {\n            movieTitle = movieTitle.replace(/Movie Watch Online Free/gi, 'English Movie');\n          } else if (hrefLower.includes('hindi')) {\n            movieTitle = movieTitle.replace(/Movie Watch Online Free/gi, 'Hindi Movie');\n          }\n          \n          // Specific movie patterns from working code\n          if (hrefLower.includes('rrr-2022')) {\n            movieTitle = 'RRR (2022) BRRip Telugu Movie';\n          } else if (hrefLower.includes('rrr-behind')) {\n            movieTitle = 'RRR: Behind & Beyond (2024) HDRip English Movie';\n          } else if (hrefLower.includes('grrr-2024-malayalam')) {\n            movieTitle = 'Grrr (2024) HDRip Malayalam Movie';\n          } else if (hrefLower.includes('grrr-2024-telugu')) {\n            movieTitle = 'Grrr (2024) HDRip Telugu Movie';\n          } else if (hrefLower.includes('grrr-2024-tamil')) {\n            movieTitle = 'Grrr (2024) HDRip Tamil Movie';\n          }\n        }\n        \n        // Final validation\n        if (movieTitle && movieTitle.toLowerCase().includes(query)) {\n          // Extract year\n          const yearMatch = movieTitle.match(/\\b(19|20)\\d{2}\\b/);\n          const year = yearMatch ? yearMatch[0] : 'N/A';\n          \n          // Make URL absolute\n          const moviePageUrl = linkHref.startsWith('http') ? linkHref : baseUrl + (linkHref.startsWith('/') ? linkHref : '/' + linkHref);\n          \n          // Extract quality and language\n          const qualityMatch = movieTitle.match(/\\b(HD|HDRip|BRRip|BluRay|DVDRip|CAM|TS|WebRip|720p|1080p|4K)\\b/i);\n          const languageMatch = movieTitle.match(/\\b(Hindi|English|Tamil|Telugu|Malayalam|Kannada|Bengali|Punjabi|Marathi)\\b/i);\n          \n          const movie = {\n            title: movieTitle.trim(),\n            url: moviePageUrl,\n            source: '5movierulz.villas',\n            year: year,\n            poster: posterUrl,\n            quality: qualityMatch ? qualityMatch[0] : 'Unknown',\n            language: languageMatch ? languageMatch[0] : 'Unknown',\n            genre: 'Unknown',\n            rating: 'N/A'\n          };\n          \n          // Check for duplicates\n          const isDuplicate = movies.some(existing => existing.url === movie.url);\n          if (!isDuplicate) {\n            movies.push(movie);\n            console.log(`✅ Added: ${movieTitle}`);\n          }\n        }\n      }\n      \n    } catch (e) {\n      console.log(`❌ Error processing film element ${i+1}: ${e.message}`);\n      continue;\n    }\n  }\n  \n  console.log(`🎯 Total unique movies found: ${movies.length}`);\n  \n  if (movies.length === 0) {\n    return [{ \n      error: 'No movies found in search results', \n      debug: {\n        htmlLength: html.length,\n        hasFilmElements: html.includes('class=\"film') || html.includes('class=\\\"film'),\n        queryUsed: query,\n        sampleHtml: html.substring(0, 1000)\n      }\n    }];\n  }\n  \n  // Return each movie as a separate item for processing\n  return movies;\n  \n} catch (error) {\n  console.error('Error parsing movies:', error);\n  return [{ \n    error: 'Failed to parse movies: ' + error.message,\n    debug: {\n      htmlLength: html ? html.length : 0,\n      errorStack: error.stack\n    }\n  }];\n}"
       },
-      "id": "parse-movies",
-      "name": "Parse Movies",
+      "id": "c08178a1-fad0-4806-955c-5d1571c7103a",
+      "name": "Parse Movies1",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [900, 300]
+      "position": [
+        -2032,
+        3200
+      ]
     },
     {
       "parameters": {
@@ -131,46 +139,88 @@
           ]
         },
         "options": {
-          "timeout": 15000,
           "response": {
             "response": {
               "neverError": true
             }
-          }
+          },
+          "timeout": 15000
         }
       },
-      "id": "fetch-movie-page",
-      "name": "Fetch Movie Page",
+      "id": "f816ce09-148d-4e74-9372-6d9642c13c81",
+      "name": "Fetch Movie Page1",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.1,
-      "position": [1120, 300]
+      "position": [
+        -1808,
+        3200
+      ]
     },
     {
       "parameters": {
-        "jsCode": "// Extract streaming URLs from movie page based on working Playwright code\nconst movieData = $input.first().json;\nconst httpResponse = $input.first().json;\n\nlet result = {\n  title: movieData.title || 'Unknown',\n  originalUrl: movieData.url || '',\n  source: '5movierulz.villas',\n  year: movieData.year || 'Unknown',\n  poster: movieData.poster || '',\n  quality: movieData.quality || 'Unknown',\n  language: movieData.language || 'Unknown',\n  genre: movieData.genre || 'Unknown',\n  rating: movieData.rating || 'N/A',\n  streamingUrls: [],\n  moviePageUrl: movieData.url || '',\n  error: null\n};\n\ntry {\n  if (!httpResponse.data) {\n    result.error = 'No page data received';\n    return result;\n  }\n  \n  const html = httpResponse.data;\n  console.log(`🔍 Extracting streaming URLs for: ${result.title}`);\n  \n  // Streaming link patterns from working Playwright code\n  const streamingPatterns = [\n    // Direct streaming service links\n    /href=[\"']([^\"']*streamlare[^\"']*)[\"']/gi,\n    /href=[\"']([^\"']*vcdnlare[^\"']*)[\"']/gi,\n    /src=[\"']([^\"']*streamlare[^\"']*)[\"']/gi,\n    /src=[\"']([^\"']*vcdnlare[^\"']*)[\"']/gi,\n    /src=[\"']([^\"']*vcdn[^\"']*)[\"']/gi,\n    \n    // Generic streaming patterns\n    /href=[\"']([^\"']*stream[^\"']*)[\"']/gi,\n    /href=[\"']([^\"']*watch[^\"']*)[\"']/gi,\n    /src=[\"']([^\"']*stream[^\"']*)[\"']/gi,\n    \n    // Class-based selectors\n    /class=[\"'][^\"']*watch-link[^\"']*[\"'][^>]*>.*?href=[\"']([^\"']+)[\"']/gi,\n    /class=[\"'][^\"']*stream-link[^\"']*[\"'][^>]*>.*?href=[\"']([^\"']+)[\"']/gi,\n    /class=[\"'][^\"']*player-link[^\"']*[\"'][^>]*>.*?href=[\"']([^\"']+)[\"']/gi\n  ];\n  \n  const foundUrls = new Set();\n  \n  // Extract URLs using patterns\n  for (const pattern of streamingPatterns) {\n    let match;\n    while ((match = pattern.exec(html)) !== null) {\n      let url = match[1];\n      \n      // Clean and validate URL\n      if (url.startsWith('//')) {\n        url = 'https:' + url;\n      } else if (url.startsWith('/')) {\n        url = 'https://www.5movierulz.chat' + url;\n      }\n      \n      // Skip invalid URLs\n      if (url.includes('javascript:') || url.includes('mailto:') || \n          url.includes('#') || url.length < 10) {\n        continue;\n      }\n      \n      foundUrls.add(url);\n    }\n  }\n  \n  // Also look for iframe sources\n  const iframeMatches = html.match(/<iframe[^>]*src=[\"']([^\"']+)[\"'][^>]*>/gi) || [];\n  for (const iframe of iframeMatches) {\n    const srcMatch = iframe.match(/src=[\"']([^\"']+)[\"']/i);\n    if (srcMatch) {\n      let url = srcMatch[1];\n      if (url.startsWith('//')) {\n        url = 'https:' + url;\n      } else if (url.startsWith('/')) {\n        url = 'https://www.5movierulz.chat' + url;\n      }\n      foundUrls.add(url);\n    }\n  }\n  \n  // Look for links with specific text patterns (from working code)\n  const linkWithTextPattern = /<a[^>]*href=[\"']([^\"']+)[\"'][^>]*>([^<]*(?:watch[^<]*online|streamlare)[^<]*)<\\/a>/gi;\n  let linkMatch;\n  while ((linkMatch = linkWithTextPattern.exec(html)) !== null) {\n    const url = linkMatch[1];\n    const text = linkMatch[2].toLowerCase();\n    \n    if ((text.includes('watch') && text.includes('online')) || text.includes('streamlare')) {\n      if (url.includes('streamlare') || url.includes('vcdnlare') || url.includes('stream')) {\n        let fullUrl = url;\n        if (url.startsWith('/')) {\n          fullUrl = 'https://www.5movierulz.chat' + url;\n        } else if (!url.startsWith('http')) {\n          fullUrl = 'https://www.5movierulz.chat/' + url;\n        }\n        foundUrls.add(fullUrl);\n      }\n    }\n  }\n  \n  // Categorize and prioritize URLs\n  for (const url of foundUrls) {\n    const urlLower = url.toLowerCase();\n    \n    // High priority streaming services\n    if (urlLower.includes('streamlare') || urlLower.includes('vcdnlare')) {\n      result.streamingUrls.push({\n        url: url,\n        type: 'streaming',\n        service: 'streamlare',\n        quality: 'HD',\n        priority: 1\n      });\n    }\n    // Other streaming services\n    else if (urlLower.includes('stream') && !urlLower.includes('5movierulz')) {\n      result.streamingUrls.push({\n        url: url,\n        type: 'streaming',\n        service: 'generic',\n        quality: 'Unknown',\n        priority: 2\n      });\n    }\n    // Watch links\n    else if (urlLower.includes('watch') && !urlLower.includes('5movierulz')) {\n      result.streamingUrls.push({\n        url: url,\n        type: 'watch',\n        service: 'generic',\n        quality: 'Unknown',\n        priority: 3\n      });\n    }\n  }\n  \n  // Sort by priority (lower number = higher priority)\n  result.streamingUrls.sort((a, b) => a.priority - b.priority);\n  \n  console.log(`Found ${result.streamingUrls.length} streaming URLs`);\n  \n  if (result.streamingUrls.length === 0) {\n    result.error = 'No streaming URLs found';\n    // Add debug info\n    result.debug = {\n      pageLength: html.length,\n      hasIframes: html.includes('<iframe'),\n      hasStreamLinks: html.toLowerCase().includes('stream'),\n      hasWatchLinks: html.toLowerCase().includes('watch'),\n      foundUrlsCount: foundUrls.size,\n      sampleUrls: Array.from(foundUrls).slice(0, 3)\n    };\n  } else {\n    // Set the primary streaming URL\n    result.url = result.streamingUrls[0].url;\n    console.log(`✅ Primary streaming URL: ${result.url}`);\n  }\n  \n} catch (error) {\n  console.error('Error extracting streaming URLs:', error);\n  result.error = 'Failed to extract URLs: ' + error.message;\n}\n\nreturn result;"
+        "jsCode": "// Extract streaming URLs from movie page based on working Playwright code\nconst movieData = $('Parse Movies1').first().json;\nconst httpResponse = $input.first().json;\n\nlet result = {\n  title: movieData.title || 'Unknown',\n  originalUrl: movieData.url || '',\n  source: '5movierulz.villas',\n  year: movieData.year || 'Unknown',\n  poster: movieData.poster || '',\n  quality: movieData.quality || 'Unknown',\n  language: movieData.language || 'Unknown',\n  genre: movieData.genre || 'Unknown',\n  rating: movieData.rating || 'N/A',\n  streamingUrls: [],\n  moviePageUrl: movieData.url || '',\n  error: null\n};\n\ntry {\n  if (!httpResponse.data) {\n    result.error = 'No page data received';\n    return result;\n  }\n  \n  const html = httpResponse.data;\n  console.log(`🔍 Extracting streaming URLs for: ${result.title}`);\n  \n  // Streaming link patterns from working Playwright code\n  const streamingPatterns = [\n    // Direct streaming service links\n    /href=[\"']([^\"']*streamlare[^\"']*)[\"']/gi,\n    /href=[\"']([^\"']*vcdnlare[^\"']*)[\"']/gi,\n    /src=[\"']([^\"']*streamlare[^\"']*)[\"']/gi,\n    /src=[\"']([^\"']*vcdnlare[^\"']*)[\"']/gi,\n    /src=[\"']([^\"']*vcdn[^\"']*)[\"']/gi,\n    \n    // Generic streaming patterns\n    /href=[\"']([^\"']*stream[^\"']*)[\"']/gi,\n    /href=[\"']([^\"']*watch[^\"']*)[\"']/gi,\n    /src=[\"']([^\"']*stream[^\"']*)[\"']/gi,\n    \n    // Class-based selectors\n    /class=[\"'][^\"']*watch-link[^\"']*[\"'][^>]*>.*?href=[\"']([^\"']+)[\"']/gi,\n    /class=[\"'][^\"']*stream-link[^\"']*[\"'][^>]*>.*?href=[\"']([^\"']+)[\"']/gi,\n    /class=[\"'][^\"']*player-link[^\"']*[\"'][^>]*>.*?href=[\"']([^\"']+)[\"']/gi\n  ];\n  \n  const foundUrls = new Set();\n  \n  // Extract URLs using patterns\n  for (const pattern of streamingPatterns) {\n    let match;\n    while ((match = pattern.exec(html)) !== null) {\n      let url = match[1];\n      \n      // Clean and validate URL\n      if (url.startsWith('//')) {\n        url = 'https:' + url;\n      } else if (url.startsWith('/')) {\n        url = 'https://www.5movierulz.chat' + url;\n      }\n      \n      // Skip invalid URLs\n      if (url.includes('javascript:') || url.includes('mailto:') || \n          url.includes('#') || url.length < 10) {\n        continue;\n      }\n      \n      foundUrls.add(url);\n    }\n  }\n  \n  // Also look for iframe sources\n  const iframeMatches = html.match(/<iframe[^>]*src=[\"']([^\"']+)[\"'][^>]*>/gi) || [];\n  for (const iframe of iframeMatches) {\n    const srcMatch = iframe.match(/src=[\"']([^\"']+)[\"']/i);\n    if (srcMatch) {\n      let url = srcMatch[1];\n      if (url.startsWith('//')) {\n        url = 'https:' + url;\n      } else if (url.startsWith('/')) {\n        url = 'https://www.5movierulz.chat' + url;\n      }\n      foundUrls.add(url);\n    }\n  }\n  \n  // Look for links with specific text patterns (from working code)\n  const linkWithTextPattern = /<a[^>]*href=[\"']([^\"']+)[\"'][^>]*>([^<]*(?:watch[^<]*online|streamlare)[^<]*)<\\/a>/gi;\n  let linkMatch;\n  while ((linkMatch = linkWithTextPattern.exec(html)) !== null) {\n    const url = linkMatch[1];\n    const text = linkMatch[2].toLowerCase();\n    \n    if ((text.includes('watch') && text.includes('online')) || text.includes('streamlare')) {\n      if (url.includes('streamlare') || url.includes('vcdnlare') || url.includes('stream')) {\n        let fullUrl = url;\n        if (url.startsWith('/')) {\n          fullUrl = 'https://www.5movierulz.chat' + url;\n        } else if (!url.startsWith('http')) {\n          fullUrl = 'https://www.5movierulz.chat/' + url;\n        }\n        foundUrls.add(fullUrl);\n      }\n    }\n  }\n  \n  // Categorize and prioritize URLs\n  for (const url of foundUrls) {\n    const urlLower = url.toLowerCase();\n    \n    // High priority streaming services\n    if (urlLower.includes('streamlare') || urlLower.includes('vcdnlare')) {\n      result.streamingUrls.push({\n        url: url,\n        type: 'streaming',\n        service: 'streamlare',\n        quality: 'HD',\n        priority: 1\n      });\n    }\n    // Other streaming services\n    else if (urlLower.includes('stream') && !urlLower.includes('5movierulz')) {\n      result.streamingUrls.push({\n        url: url,\n        type: 'streaming',\n        service: 'generic',\n        quality: 'Unknown',\n        priority: 2\n      });\n    }\n    // Watch links\n    else if (urlLower.includes('watch') && !urlLower.includes('5movierulz')) {\n      result.streamingUrls.push({\n        url: url,\n        type: 'watch',\n        service: 'generic',\n        quality: 'Unknown',\n        priority: 3\n      });\n    }\n  }\n  \n  // Sort by priority (lower number = higher priority)\n  result.streamingUrls.sort((a, b) => a.priority - b.priority);\n  \n  console.log(`Found ${result.streamingUrls.length} streaming URLs`);\n  \n  if (result.streamingUrls.length === 0) {\n    result.error = 'No streaming URLs found';\n    // Add debug info\n    result.debug = {\n      pageLength: html.length,\n      hasIframes: html.includes('<iframe'),\n      hasStreamLinks: html.toLowerCase().includes('stream'),\n      hasWatchLinks: html.toLowerCase().includes('watch'),\n      foundUrlsCount: foundUrls.size,\n      sampleUrls: Array.from(foundUrls).slice(0, 3)\n    };\n  } else {\n    // Set the primary streaming URL\n    result.url = result.streamingUrls[0].url;\n    console.log(`✅ Primary streaming URL: ${result.url}`);\n  }\n  \n} catch (error) {\n  console.error('Error extracting streaming URLs:', error);\n  result.error = 'Failed to extract URLs: ' + error.message;\n}\n\nreturn result;"
       },
-      "id": "extract-streaming-urls",
-      "name": "Extract Streaming URLs",
+      "id": "90434a56-7f34-41de-a0f0-48c9aa3231df",
+      "name": "Extract Streaming URLs1",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [1340, 300]
+      "position": [
+        -1584,
+        3200
+      ]
     },
     {
       "parameters": {
         "respondWith": "json",
-        "responseBody": "={{ {\n  \"query\": $('Extract Parameters').first().json.query,\n  \"results\": $('Parse Movies').all().map(movie => ({\n    \"title\": movie.json.title,\n    \"url\": movie.json.url,\n    \"source\": movie.json.source,\n    \"year\": movie.json.year,\n    \"poster\": movie.json.poster,\n    \"quality\": movie.json.quality,\n    \"language\": movie.json.language,\n    \"genre\": movie.json.genre,\n    \"rating\": movie.json.rating,\n    \"streamingUrls\": $input.all().find(item => item.json.originalUrl === movie.json.url)?.json.streamingUrls || []\n  })),\n  \"total\": $('Parse Movies').all().length,\n  \"message\": \"Found \" + $('Parse Movies').all().length + \" movies with streaming URLs from 5movierulz.villas\",\n  \"source\": \"5movierulz.villas\",\n  \"timestamp\": new Date().toISOString(),\n  \"success\": true\n} }}",
+        "responseBody": "={{ {\n  \"query\": $('Extract Parameters').first().json.query,\n  \"results\": $('Parse Movies1').all().map(movie => ({\n    \"title\": movie.json.title,\n    \"url\": movie.json.url,\n    \"source\": movie.json.source,\n    \"year\": movie.json.year,\n    \"poster\": movie.json.poster,\n    \"quality\": movie.json.quality,\n    \"language\": movie.json.language,\n    \"genre\": movie.json.genre,\n    \"rating\": movie.json.rating,\n    \"streamingUrls\": $input.all().find(item => item.json.originalUrl === movie.json.url)?.json.streamingUrls || []\n  })),\n  \"total\": $('Parse Movies1').all().length,\n  \"message\": \"Found \" + $('Parse Movies1').all().length + \" movies with streaming URLs from 5movierulz.villas\",\n  \"source\": \"5movierulz.villas\",\n  \"timestamp\": new Date().toISOString(),\n  \"success\": true\n} }}",
         "options": {}
       },
-      "id": "respond-results",
-      "name": "Respond",
+      "id": "1c85d445-6a75-456f-b675-4df866b4c443",
+      "name": "Respond1",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1,
-      "position": [1560, 300]
+      "position": [
+        -1376,
+        3200
+      ]
     }
   ],
-  "pinData": {},
+  "pinData": {
+    "Webhook Trigger": [
+      {
+        "json": {
+          "headers": {
+            "host": "n8n-instance-vnyx.onrender.com",
+            "user-agent": "python-httpx/0.25.2",
+            "content-length": "19",
+            "accept": "*/*",
+            "accept-encoding": "gzip, br",
+            "cdn-loop": "cloudflare; loops=1",
+            "cf-connecting-ip": "44.226.122.3",
+            "cf-ipcountry": "US",
+            "cf-ray": "97b75ae92e3e28b9-PDX",
+            "cf-visitor": "{\"scheme\":\"https\"}",
+            "content-type": "application/json",
+            "render-proxy-ttl": "4",
+            "rndr-id": "bbebdb3c-2c8a-4193",
+            "true-client-ip": "44.226.122.3",
+            "x-forwarded-for": "44.226.122.3, 104.23.160.105, 10.214.253.103",
+            "x-forwarded-proto": "https",
+            "x-request-start": "1757260156383950"
+          },
+          "params": {},
+          "query": {},
+          "body": {
+            "query": "ghaati"
+          },
+          "webhookUrl": "http://localhost:5678/webhook/movie-scraper-villas",
+          "executionMode": "production"
+        }
+      }
+    ]
+  },
   "connections": {
-    "Webhook": {
+    "Webhook Trigger": {
       "main": [
         [
           {
@@ -185,51 +235,51 @@
       "main": [
         [
           {
-            "node": "Fetch Search Results",
+            "node": "Fetch Search Results1",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Fetch Search Results": {
+    "Fetch Search Results1": {
       "main": [
         [
           {
-            "node": "Parse Movies",
+            "node": "Parse Movies1",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Parse Movies": {
+    "Parse Movies1": {
       "main": [
         [
           {
-            "node": "Fetch Movie Page",
+            "node": "Fetch Movie Page1",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Fetch Movie Page": {
+    "Fetch Movie Page1": {
       "main": [
         [
           {
-            "node": "Extract Streaming URLs",
+            "node": "Extract Streaming URLs1",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Extract Streaming URLs": {
+    "Extract Streaming URLs1": {
       "main": [
         [
           {
-            "node": "Respond",
+            "node": "Respond1",
             "type": "main",
             "index": 0
           }
@@ -237,14 +287,14 @@
       ]
     }
   },
-  "active": false,
+  "active": true,
   "settings": {
     "executionOrder": "v1"
   },
-  "versionId": "1",
+  "versionId": "5dfa93b1-6cb1-4786-950e-b69b7b70844d",
   "meta": {
-    "templateCredsSetupCompleted": true
+    "instanceId": "532248ecf9735193fbc3e6cc23dc76fef5190aff21ba8a8fcc687db7bf357430"
   },
-  "id": "working-movie-search-workflow",
+  "id": "0IlUVmobWIszdcmA",
   "tags": []
 }
