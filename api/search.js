@@ -45,8 +45,39 @@ export default async function handler(req, res) {
 
     const data = await response.json();
     
-    // Return the data with CORS headers
-    res.status(200).json(data);
+    // Log the response for debugging
+    console.log('N8N Response:', JSON.stringify(data, null, 2));
+    
+    // Handle different response formats from n8n
+    let formattedResponse;
+    
+    if (Array.isArray(data)) {
+      // If n8n returns an array directly
+      formattedResponse = {
+        query: query,
+        results: data,
+        total: data.length,
+        message: `Found ${data.length} movies`,
+        source: "5movierulz.villas",
+        success: true
+      };
+    } else if (data.results) {
+      // If n8n returns an object with results property
+      formattedResponse = data;
+    } else {
+      // If n8n returns a single object, wrap it in results array
+      formattedResponse = {
+        query: query,
+        results: [data],
+        total: 1,
+        message: "Found 1 movie",
+        source: "5movierulz.villas",
+        success: true
+      };
+    }
+    
+    // Return the formatted data with CORS headers
+    res.status(200).json(formattedResponse);
 
   } catch (error) {
     console.error('Proxy error:', error);
