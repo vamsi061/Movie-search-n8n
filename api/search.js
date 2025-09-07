@@ -57,31 +57,84 @@ export default async function handler(req, res) {
         (Array.isArray(data) && data[0]?.message === "Workflow was started")) {
       
       console.error('N8N workflow started but did not complete properly');
-      return res.status(500).json({
-        error: 'N8N workflow did not complete',
-        message: 'The movie search workflow started but did not return results. Check n8n workflow configuration.',
-        debug: data
+      // For now, return empty results instead of error to avoid breaking UI
+      return res.status(200).json({
+        query: query,
+        results: [],
+        total: 0,
+        message: 'N8N workflow did not complete properly. No results found.',
+        source: "5movierulz.villas",
+        success: false,
+        error: 'Workflow incomplete'
+      });
+    }
+    
+    // Function to fix StreamLare URLs
+    function fixStreamingUrls(results) {
+      if (!Array.isArray(results)) return results;
+      
+      return results.map(movie => {
+        if (movie.streamingUrls && Array.isArray(movie.streamingUrls)) {
+          movie.streamingUrls = movie.streamingUrls.map(stream => {
+            let url = stream.url;
+            
+            // Fix StreamLare/VCDNLare URLs
+            if (url.includes('vcdnlare.com') || url.includes('streamlare.com')) {
+              // Remove query parameters that might cause 404
+              const baseUrl = url.split('?')[0];
+              
+              // If it's a direct video URL, convert to player URL
+              if (baseUrl.includes('/v/')) {
+                const videoId = baseUrl.split('/v/')[1];
+                url = `https://streamlare.com/v/${videoId}`;
+              }
+            }
+            
+            return {
+              ...stream,
+              url: url,
+              originalUrl: stream.url // Keep original for debugging
+            };
+          });
+        }
+        
+        // Also fix the main URL if it's a streaming URL
+        if (movie.url && (movie.url.includes('vcdnlare.com') || movie.url.includes('streamlare.com'))) {
+          const baseUrl = movie.url.split('?')[0];
+          if (baseUrl.includes('/v/')) {
+            const videoId = baseUrl.split('/v/')[1];
+            movie.url = `https://streamlare.com/v/${videoId}`;
+          }
+        }
+        
+        return movie;
       });
     }
     
     if (Array.isArray(data)) {
       // If n8n returns an array directly
+      const fixedResults = fixStreamingUrls(data);
       formattedResponse = {
         query: query,
-        results: data,
-        total: data.length,
-        message: `Found ${data.length} movies`,
+        results: fixedResults,
+        total: fixedResults.length,
+        message: `Found ${fixedResults.length} movies`,
         source: "5movierulz.villas",
         success: true
       };
     } else if (data.results) {
       // If n8n returns an object with results property
-      formattedResponse = data;
+      const fixedResults = fixStreamingUrls(data.results);
+      formattedResponse = {
+        ...data,
+        results: fixedResults
+      };
     } else {
       // If n8n returns a single object, wrap it in results array
+      const fixedResults = fixStreamingUrls([data]);
       formattedResponse = {
         query: query,
-        results: [data],
+        results: fixedResults,
         total: 1,
         message: "Found 1 movie",
         source: "5movierulz.villas",

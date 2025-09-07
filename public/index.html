@@ -404,7 +404,8 @@
             
             const streamingLinks = movie.streamingUrls && movie.streamingUrls.length > 0 
                 ? movie.streamingUrls.map(stream => 
-                    `<a href="${stream.url}" target="_blank" class="stream-link priority-${stream.priority}">
+                    `<a href="${stream.url}" target="_blank" rel="noopener noreferrer" class="stream-link priority-${stream.priority}" 
+                       onclick="openStreamingLink('${stream.url}', event)">
                         ${stream.service === 'streamlare' ? '🎬 StreamLare' : '📺 Stream'} (${stream.quality})
                     </a>`
                   ).join('')
@@ -432,6 +433,35 @@
 
         // Auto-focus search input
         searchInput.focus();
+
+        // Function to handle streaming link clicks with proper headers
+        function openStreamingLink(url, event) {
+            event.preventDefault();
+            
+            // For StreamLare links, try to open with proper referer
+            if (url.includes('streamlare.com') || url.includes('vcdnlare.com')) {
+                // Create a form to submit with proper referer
+                const form = document.createElement('form');
+                form.method = 'POST';
+                form.action = url;
+                form.target = '_blank';
+                form.style.display = 'none';
+                
+                // Add referer as hidden input (some sites check this)
+                const refererInput = document.createElement('input');
+                refererInput.type = 'hidden';
+                refererInput.name = 'referer';
+                refererInput.value = window.location.href;
+                form.appendChild(refererInput);
+                
+                document.body.appendChild(form);
+                form.submit();
+                document.body.removeChild(form);
+            } else {
+                // For other links, open normally
+                window.open(url, '_blank', 'noopener,noreferrer');
+            }
+        }
     </script>
 </body>
 </html>
