@@ -404,7 +404,7 @@
             
             const streamingLinks = movie.streamingUrls && movie.streamingUrls.length > 0 
                 ? movie.streamingUrls.map(stream => 
-                    `<a href="${stream.url}" target="_blank" rel="noopener noreferrer" class="stream-link priority-${stream.priority}">
+                    `<a href="javascript:void(0)" onclick="openStreamLink('${stream.url.replace(/'/g, "\\'")}', '${stream.service}')" class="stream-link priority-${stream.priority}">
                         ${stream.service === 'streamlare' ? '🎬 StreamLare' : '📺 Stream'} (${stream.quality})
                     </a>`
                   ).join('')
@@ -432,6 +432,79 @@
 
         // Auto-focus search input
         searchInput.focus();
+
+        // Function to handle streaming links with different approaches
+        function openStreamLink(url, service) {
+            console.log('Opening streaming link:', url, 'Service:', service);
+            
+            if (url.includes('vcdnlare.com') || url.includes('streamlare.com')) {
+                // Try multiple approaches for StreamLare links
+                
+                // Approach 1: Try with proper user agent and referer
+                const newWindow = window.open('', '_blank');
+                if (newWindow) {
+                    newWindow.document.write(`
+                        <html>
+                        <head>
+                            <title>Loading Stream...</title>
+                            <style>
+                                body { 
+                                    font-family: Arial, sans-serif; 
+                                    text-align: center; 
+                                    padding: 50px;
+                                    background: #f0f0f0;
+                                }
+                                .loading { 
+                                    font-size: 18px; 
+                                    margin-bottom: 20px; 
+                                }
+                                .redirect-btn {
+                                    background: #4CAF50;
+                                    color: white;
+                                    padding: 15px 30px;
+                                    border: none;
+                                    border-radius: 5px;
+                                    font-size: 16px;
+                                    cursor: pointer;
+                                    text-decoration: none;
+                                    display: inline-block;
+                                }
+                                .direct-link {
+                                    margin-top: 20px;
+                                    word-break: break-all;
+                                    background: #fff;
+                                    padding: 10px;
+                                    border-radius: 5px;
+                                }
+                            </style>
+                        </head>
+                        <body>
+                            <div class="loading">🎬 Preparing Stream...</div>
+                            <p>If the stream doesn't start automatically, click the button below:</p>
+                            <a href="${url}" class="redirect-btn" target="_self">Open Stream</a>
+                            <div class="direct-link">
+                                <strong>Direct Link:</strong><br>
+                                <a href="${url}" target="_self">${url}</a>
+                            </div>
+                            <script>
+                                // Auto-redirect after 2 seconds
+                                setTimeout(function() {
+                                    window.location.href = '${url}';
+                                }, 2000);
+                            </script>
+                        </body>
+                        </html>
+                    `);
+                    newWindow.document.close();
+                } else {
+                    // Fallback if popup blocked
+                    window.location.href = url;
+                }
+            } else {
+                // For other streaming services, open normally
+                window.open(url, '_blank', 'noopener,noreferrer');
+            }
+        }
     </script>
 </body>
 </html>
