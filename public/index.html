@@ -403,8 +403,8 @@
             const posterUrl = movie.poster || 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMzAwIiBoZWlnaHQ9IjIwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMTAwJSIgaGVpZ2h0PSIxMDAlIiBmaWxsPSIjZjBmMGYwIi8+PHRleHQgeD0iNTAlIiB5PSI1MCUiIGZvbnQtZmFtaWx5PSJBcmlhbCIgZm9udC1zaXplPSIxNCIgZmlsbD0iIzk5OSIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZHk9Ii4zZW0iPk5vIEltYWdlPC90ZXh0Pjwvc3ZnPg==';
             
             const streamingLinks = movie.streamingUrls && movie.streamingUrls.length > 0 
-                ? movie.streamingUrls.map(stream => 
-                    `<a href="javascript:void(0)" onclick="openStreamLink('${stream.url.replace(/'/g, "\\'")}', '${stream.service}')" class="stream-link priority-${stream.priority}">
+                ? movie.streamingUrls.map((stream, index) => 
+                    `<a href="${stream.url}" target="_blank" rel="noopener noreferrer" class="stream-link priority-${stream.priority}" data-url="${stream.url}" data-service="${stream.service}" onclick="handleStreamClick(event, this)">
                         ${stream.service === 'streamlare' ? '🎬 StreamLare' : '📺 Stream'} (${stream.quality})
                     </a>`
                   ).join('')
@@ -433,48 +433,32 @@
         // Auto-focus search input
         searchInput.focus();
 
-        // Function to handle streaming links with different approaches
-        function openStreamLink(url, service) {
+        // Simple function to handle streaming link clicks
+        function handleStreamClick(event, element) {
+            event.preventDefault();
+            
+            const url = element.getAttribute('data-url');
+            const service = element.getAttribute('data-service');
+            
             console.log('Opening streaming link:', url, 'Service:', service);
             
+            // For StreamLare/VCDNLare links, try to open with a delay to bypass some protections
             if (url.includes('vcdnlare.com') || url.includes('streamlare.com')) {
-                // Try multiple approaches for StreamLare links
+                // Show loading message
+                element.innerHTML = '⏳ Opening...';
+                element.style.opacity = '0.7';
                 
-                // Approach 1: Try with proper user agent and referer
-                const newWindow = window.open('', '_blank');
-                if (newWindow) {
-                    const htmlContent = '<html>' +
-                        '<head>' +
-                        '<title>Loading Stream...</title>' +
-                        '<style>' +
-                        'body { font-family: Arial, sans-serif; text-align: center; padding: 50px; background: #f0f0f0; }' +
-                        '.loading { font-size: 18px; margin-bottom: 20px; }' +
-                        '.redirect-btn { background: #4CAF50; color: white; padding: 15px 30px; border: none; border-radius: 5px; font-size: 16px; cursor: pointer; text-decoration: none; display: inline-block; }' +
-                        '.direct-link { margin-top: 20px; word-break: break-all; background: #fff; padding: 10px; border-radius: 5px; }' +
-                        '</style>' +
-                        '</head>' +
-                        '<body>' +
-                        '<div class="loading">🎬 Preparing Stream...</div>' +
-                        '<p>If the stream doesn\'t start automatically, click the button below:</p>' +
-                        '<a href="' + url + '" class="redirect-btn" target="_self">Open Stream</a>' +
-                        '<div class="direct-link">' +
-                        '<strong>Direct Link:</strong><br>' +
-                        '<a href="' + url + '" target="_self">' + url + '</a>' +
-                        '</div>' +
-                        '<script>' +
-                        'setTimeout(function() { window.location.href = "' + url + '"; }, 2000);' +
-                        '</script>' +
-                        '</body>' +
-                        '</html>';
+                setTimeout(function() {
+                    window.open(url, '_blank', 'noopener,noreferrer');
                     
-                    newWindow.document.write(htmlContent);
-                    newWindow.document.close();
-                } else {
-                    // Fallback if popup blocked
-                    window.location.href = url;
-                }
+                    // Reset button after 2 seconds
+                    setTimeout(function() {
+                        element.innerHTML = service === 'streamlare' ? '🎬 StreamLare' : '📺 Stream';
+                        element.style.opacity = '1';
+                    }, 2000);
+                }, 500);
             } else {
-                // For other streaming services, open normally
+                // For other streaming services, open immediately
                 window.open(url, '_blank', 'noopener,noreferrer');
             }
         }
