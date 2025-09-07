@@ -69,7 +69,7 @@ export default async function handler(req, res) {
       });
     }
     
-    // Function to fix StreamLare URLs
+    // Function to clean StreamLare URLs (keep original format but clean any malformed URLs)
     function fixStreamingUrls(results) {
       if (!Array.isArray(results)) return results;
       
@@ -78,15 +78,13 @@ export default async function handler(req, res) {
           movie.streamingUrls = movie.streamingUrls.map(stream => {
             let url = stream.url;
             
-            // Fix StreamLare/VCDNLare URLs
+            // Clean up any malformed URLs but keep the original format
             if (url.includes('vcdnlare.com') || url.includes('streamlare.com')) {
-              // Remove query parameters that might cause 404
-              const baseUrl = url.split('?')[0];
-              
-              // If it's a direct video URL, convert to player URL
-              if (baseUrl.includes('/v/')) {
-                const videoId = baseUrl.split('/v/')[1];
-                url = `https://streamlare.com/v/${videoId}`;
+              // Remove any carriage returns or newlines that might break the URL
+              url = url.replace(/[\r\n]/g, '');
+              // Ensure proper protocol
+              if (!url.startsWith('http')) {
+                url = 'https://' + url;
               }
             }
             
@@ -98,12 +96,11 @@ export default async function handler(req, res) {
           });
         }
         
-        // Also fix the main URL if it's a streaming URL
+        // Also clean the main URL if it's a streaming URL
         if (movie.url && (movie.url.includes('vcdnlare.com') || movie.url.includes('streamlare.com'))) {
-          const baseUrl = movie.url.split('?')[0];
-          if (baseUrl.includes('/v/')) {
-            const videoId = baseUrl.split('/v/')[1];
-            movie.url = `https://streamlare.com/v/${videoId}`;
+          movie.url = movie.url.replace(/[\r\n]/g, '');
+          if (!movie.url.startsWith('http')) {
+            movie.url = 'https://' + movie.url;
           }
         }
         
