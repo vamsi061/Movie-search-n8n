@@ -24,15 +24,19 @@ export default async function handler(req, res) {
   }
 
   try {
-    // Proxy request to your n8n instance
-    const n8nUrl = `https://n8n-instance-vnyx.onrender.com/webhook/movie-scraper-villas?query=${encodeURIComponent(query)}`;
+    // Proxy request to your n8n instance using POST
+    const n8nUrl = 'https://n8n-instance-vnyx.onrender.com/webhook/movie-scraper-villas';
     
     const response = await fetch(n8nUrl, {
-      method: 'GET',
+      method: 'POST',
       headers: {
+        'Content-Type': 'application/json',
         'User-Agent': 'Movie-Search-UI/1.0',
         'Accept': 'application/json',
       },
+      body: JSON.stringify({
+        query: query
+      }),
     });
 
     if (!response.ok) {
