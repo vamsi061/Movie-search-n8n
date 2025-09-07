@@ -306,8 +306,10 @@
     </div>
 
     <script>
-        // You can change this to your deployed n8n webhook URL
-        const API_URL = 'http://localhost:5678/webhook/movie-scraper-villas';
+        // API URL - Update this to your deployed n8n webhook URL
+        const API_URL = window.location.hostname === 'localhost' 
+            ? 'http://localhost:5678/webhook/movie-scraper-villas'
+            : 'https://your-n8n-instance.com/webhook/movie-scraper-villas'; // Update this URL
         
         const searchForm = document.getElementById('searchForm');
         const searchInput = document.getElementById('searchInput');

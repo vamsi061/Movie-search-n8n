@@ -49,7 +49,16 @@ npm start
 
 5. Open http://localhost:3000
 
-### Deploy to Render
+### Deploy to Vercel (Recommended)
+
+1. Fork this repository
+2. Go to [Vercel.com](https://vercel.com)
+3. Click "New Project"
+4. Import from GitHub: `vamsi061/Movie-search-n8n`
+5. Click "Deploy" (no configuration needed!)
+6. Your app will be live at: `https://your-project-name.vercel.app`
+
+### Deploy to Render (Alternative)
 
 1. Fork this repository
 2. Connect your GitHub account to Render
@@ -59,8 +68,6 @@ npm start
    - **Build Command**: `npm install`
    - **Start Command**: `npm start`
    - **Environment**: Node
-6. Add environment variable if needed:
-   - `PORT` (automatically set by Render)
 
 ## API Integration
 
