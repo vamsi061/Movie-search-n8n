@@ -488,13 +488,19 @@
         // Auto-focus search input
         searchInput.focus();
 
-        // Simple function to open streaming URLs - matches working code exactly
+        // Function to open streaming URLs with localhost proxy for StreamLare
         function openStreamingUrl(url) {
             console.log('Opening streaming URL:', url);
             
-            // Open directly like the working code - no proxy, no delays, no complexity
             if (url && url !== '#') {
-                window.open(url, '_blank');
+                // For StreamLare/VCDNLare links, use localhost proxy to bypass domain restrictions
+                if (url.includes('vcdnlare.com') || url.includes('streamlare.com')) {
+                    const proxyUrl = `/api/localhost-proxy?url=${encodeURIComponent(url)}`;
+                    window.open(proxyUrl, '_blank', 'width=1200,height=800');
+                } else {
+                    // For other links, open directly
+                    window.open(url, '_blank');
+                }
             }
         }
 
