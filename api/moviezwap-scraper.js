@@ -33,22 +33,91 @@ export default async function handler(req, res) {
     const searchUrl = `https://www.moviezwap.care/search.php?q=${encodeURIComponent(query)}`;
     console.log('Fetching:', searchUrl);
 
-    // Simple headers to avoid detection issues
-    const headers = {
-      'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-      'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
-      'Accept-Language': 'en-US,en;q=0.5',
-      'Referer': 'https://www.moviezwap.care/'
-    };
+    // Try multiple approaches to bypass 403
+    let response;
+    let lastError;
 
-    // Add small delay
-    await new Promise(resolve => setTimeout(resolve, 1000));
+    // Method 1: Basic headers
+    try {
+      console.log('Trying method 1: Basic headers');
+      const headers1 = {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+        'Accept-Language': 'en-US,en;q=0.5',
+        'Referer': 'https://www.moviezwap.care/'
+      };
 
-    const response = await fetch(searchUrl, {
-      method: 'GET',
-      headers: headers,
-      redirect: 'follow'
-    });
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      response = await fetch(searchUrl, {
+        method: 'GET',
+        headers: headers1,
+        redirect: 'follow'
+      });
+
+      if (response.ok) {
+        console.log('Method 1 succeeded');
+      } else {
+        throw new Error(`Method 1 failed: ${response.status}`);
+      }
+    } catch (error) {
+      console.log('Method 1 failed:', error.message);
+      lastError = error;
+
+      // Method 2: Mobile user agent
+      try {
+        console.log('Trying method 2: Mobile user agent');
+        const headers2 = {
+          'User-Agent': 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1',
+          'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+          'Accept-Language': 'en-US,en;q=0.9',
+          'Referer': 'https://www.google.com/'
+        };
+
+        await new Promise(resolve => setTimeout(resolve, 2000));
+        response = await fetch(searchUrl, {
+          method: 'GET',
+          headers: headers2,
+          redirect: 'follow'
+        });
+
+        if (response.ok) {
+          console.log('Method 2 succeeded');
+        } else {
+          throw new Error(`Method 2 failed: ${response.status}`);
+        }
+      } catch (error2) {
+        console.log('Method 2 failed:', error2.message);
+        lastError = error2;
+
+        // Method 3: Minimal headers
+        try {
+          console.log('Trying method 3: Minimal headers');
+          const headers3 = {
+            'User-Agent': 'curl/7.68.0',
+            'Accept': '*/*'
+          };
+
+          await new Promise(resolve => setTimeout(resolve, 3000));
+          response = await fetch(searchUrl, {
+            method: 'GET',
+            headers: headers3,
+            redirect: 'follow'
+          });
+
+          if (response.ok) {
+            console.log('Method 3 succeeded');
+          } else {
+            throw new Error(`Method 3 failed: ${response.status}`);
+          }
+        } catch (error3) {
+          console.log('Method 3 failed:', error3.message);
+          lastError = error3;
+          
+          // All methods failed, throw the last error
+          throw lastError;
+        }
+      }
+    }
 
     if (!response.ok) {
       console.log('Response not OK:', response.status, response.statusText);

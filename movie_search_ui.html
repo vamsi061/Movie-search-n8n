@@ -369,16 +369,25 @@
                         .then(res => res.json())
                         .catch(err => ({ error: err.message, source: 'n8n' })),
                     
-                    // MoviezWap search with fallback
+                    // MoviezWap search with multiple fallbacks
                     fetch(`/api/moviezwap-scraper?q=${encodeURIComponent(query)}`)
                         .then(res => res.json())
+                        .then(data => {
+                            // If scraper fails with 403, try bypass method
+                            if (!data.success && data.error && data.error.includes('403')) {
+                                console.log('MoviezWap 403 detected, trying bypass...');
+                                return fetch(`/api/moviezwap-bypass?query=${encodeURIComponent(query)}`)
+                                    .then(res => res.json());
+                            }
+                            return data;
+                        })
                         .catch(async (err) => {
-                            console.log('MoviezWap direct failed, trying proxy...');
+                            console.log('MoviezWap direct failed, trying bypass...');
                             try {
-                                const proxyResponse = await fetch(`/api/proxy-fetch?url=https://www.moviezwap.care/search.php&query=${encodeURIComponent(query)}`);
-                                return await proxyResponse.json();
-                            } catch (proxyErr) {
-                                return { error: `Direct: ${err.message}, Proxy: ${proxyErr.message}`, source: 'moviezwap' };
+                                const bypassResponse = await fetch(`/api/moviezwap-bypass?query=${encodeURIComponent(query)}`);
+                                return await bypassResponse.json();
+                            } catch (bypassErr) {
+                                return { error: `Direct: ${err.message}, Bypass: ${bypassErr.message}`, source: 'moviezwap' };
                             }
                         })
                 ];
