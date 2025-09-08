@@ -455,12 +455,23 @@
                 }
 
                 // Process MoviezWap results
-                if (results[1].status === 'fulfilled' && results[1].value.results) {
+                if (results[1].status === 'fulfilled' && results[1].value) {
                     const moviezWapData = results[1].value;
-                    if (moviezWapData.results && moviezWapData.results.length > 0) {
+                    console.log('MoviezWap response:', moviezWapData);
+                    
+                    if (moviezWapData.success && moviezWapData.results && moviezWapData.results.length > 0) {
+                        console.log('Adding MoviezWap movies:', moviezWapData.results.length);
                         allMovies.push(...moviezWapData.results);
                         totalCount += moviezWapData.results.length;
                         sources.push(`MoviezWap (${moviezWapData.results.length})`);
+                    } else if (moviezWapData.results && moviezWapData.results.length > 0) {
+                        // Handle case where success flag might be missing but results exist
+                        console.log('Adding MoviezWap movies (no success flag):', moviezWapData.results.length);
+                        allMovies.push(...moviezWapData.results);
+                        totalCount += moviezWapData.results.length;
+                        sources.push(`MoviezWap (${moviezWapData.results.length})`);
+                    } else {
+                        console.log('No MoviezWap results or failed:', moviezWapData.message || moviezWapData.error);
                     }
                 }
 
