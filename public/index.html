@@ -402,15 +402,14 @@
         function createMovieCard(movie) {
             const posterUrl = movie.poster || 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMzAwIiBoZWlnaHQ9IjIwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMTAwJSIgaGVpZ2h0PSIxMDAlIiBmaWxsPSIjZjBmMGYwIi8+PHRleHQgeD0iNTAlIiB5PSI1MCUiIGZvbnQtZmFtaWx5PSJBcmlhbCIgZm9udC1zaXplPSIxNCIgZmlsbD0iIzk5OSIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZHk9Ii4zZW0iPk5vIEltYWdlPC90ZXh0Pjwvc3ZnPg==';
             
-            const streamingLinks = movie.streamingUrls && movie.streamingUrls.length > 0 
-                ? movie.streamingUrls.map((stream, index) => {
-                    // Clean URL exactly like working code - remove whitespace and carriage returns
-                    const cleanUrl = stream.url.toString().replace(/\s+/g, '').replace(/\n/g, '').replace(/\r/g, '').trim();
-                    return `<a href="javascript:void(0)" onclick="openStreamingUrl('${cleanUrl}')" class="stream-link priority-${stream.priority}">
-                        ${stream.service === 'streamlare' ? '🎬 StreamLare' : '📺 Stream'} (${stream.quality})
-                    </a>`;
-                  }).join('')
-                : '<span style="color: #999; font-size: 0.85rem;">No streaming links available</span>';
+            // Clean the main streaming URL exactly like working code
+            const movieUrl = (movie.url || '#').toString().replace(/\s+/g, '').replace(/\n/g, '').replace(/\r/g, '').trim();
+            
+            const streamingButton = movieUrl && movieUrl !== '#' 
+                ? `<a href="javascript:void(0)" onclick="openStreamingUrl('${movieUrl}')" class="stream-link priority-1">
+                     🎬 Watch Now
+                   </a>`
+                : '<span style="color: #999; font-size: 0.85rem;">No streaming link available</span>';
 
             return `
                 <div class="movie-card">
@@ -420,21 +419,18 @@
                         <h3 class="movie-title">${movie.title}</h3>
                         <div class="movie-meta">
                             ${movie.year !== 'N/A' ? `<span class="meta-tag year">${movie.year}</span>` : ''}
-                            ${movie.quality !== 'Unknown' ? `<span class="meta-tag quality">${movie.quality}</span>` : ''}
-                            ${movie.language !== 'Unknown' ? `<span class="meta-tag language">${movie.language}</span>` : ''}
+                            ${movie.genre ? `<span class="meta-tag quality">${movie.genre}</span>` : ''}
+                            ${movie.source ? `<span class="meta-tag language">${movie.source}</span>` : ''}
                         </div>
                         <div class="streaming-links">
                             <div class="streaming-title">🎬 Watch Online:</div>
-                            ${streamingLinks}
+                            ${streamingButton}
+                            ${movie.movie_page ? `
                             <div style="margin-top: 15px;">
-                                <div class="streaming-title">📥 Download Options:</div>
-                                <a href="javascript:void(0)" onclick="downloadMovie('${movie.title.replace(/'/g, "\\'")}', '${movie.url}')" class="stream-link" style="background: linear-gradient(135deg, #2196F3 0%, #1976D2 100%);">
-                                    📥 Download Movie
+                                <a href="${movie.movie_page}" target="_blank" class="stream-link" style="background: linear-gradient(135deg, #FF5722 0%, #D84315 100%);">
+                                    🔗 Movie Page
                                 </a>
-                                <a href="${movie.url}" target="_blank" class="stream-link" style="background: linear-gradient(135deg, #FF5722 0%, #D84315 100%);">
-                                    🔗 Open Movie Page
-                                </a>
-                            </div>
+                            </div>` : ''}
                         </div>
                     </div>
                 </div>
