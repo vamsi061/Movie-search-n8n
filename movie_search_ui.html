@@ -460,7 +460,7 @@
         // Auto-focus search input
         searchInput.focus();
 
-        // Function to open streaming URLs with proper referer handling
+        // Function to open streaming URLs
         function openStreamingUrl(url) {
             console.log('Opening streaming URL:', url);
             
@@ -468,15 +468,29 @@
                 // Clean URL first - remove all whitespace and control characters
                 const cleanUrl = url.toString().replace(/[\r\n\t\s]/g, '').trim();
                 
-                // For StreamLare/VCDNLare URLs, use redirect to set proper referer
+                // For StreamLare URLs, show instructions since they have strict domain restrictions
                 if (cleanUrl.includes('vcdnlare.com') || cleanUrl.includes('streamlare.com')) {
-                    const redirectUrl = `/api/stream-redirect?url=${encodeURIComponent(cleanUrl)}`;
-                    window.open(redirectUrl, '_blank');
+                    // Show alert with copy option for StreamLare
+                    if (confirm('StreamLare has domain restrictions. Click OK to copy URL to clipboard, then paste in new tab for best results.')) {
+                        copyToClipboard(cleanUrl);
+                    }
+                    // Also try direct open
+                    window.open(cleanUrl, '_blank');
                 } else {
                     // Open other streaming URLs directly
                     window.open(cleanUrl, '_blank');
                 }
             }
+        }
+        
+        // Copy URL to clipboard
+        function copyToClipboard(text) {
+            navigator.clipboard.writeText(text).then(function() {
+                alert('URL copied to clipboard! Paste in new tab.');
+            }).catch(function(err) {
+                console.error('Failed to copy URL: ', err);
+                prompt('Copy this URL manually:', text);
+            });
         }
 
         // Removed all download functionality - now using simple Movie Page button

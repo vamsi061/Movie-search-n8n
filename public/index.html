@@ -575,7 +575,7 @@
         searchInput.focus();
 
 
-        // Function to open streaming URLs with proper referer handling
+        // Function to open streaming URLs
         function openStreamingUrl(url) {
             console.log('Opening streaming URL:', url);
             
@@ -583,15 +583,90 @@
                 // Clean URL first - remove all whitespace and control characters
                 const cleanUrl = url.toString().replace(/[\r\n\t\s]/g, '').trim();
                 
-                // For StreamLare/VCDNLare URLs, use redirect to set proper referer
+                // For StreamLare URLs, show instructions since they have strict domain restrictions
                 if (cleanUrl.includes('vcdnlare.com') || cleanUrl.includes('streamlare.com')) {
-                    const redirectUrl = `/api/stream-redirect?url=${encodeURIComponent(cleanUrl)}`;
-                    window.open(redirectUrl, '_blank');
+                    showStreamLareInstructions(cleanUrl);
                 } else {
                     // Open other streaming URLs directly
                     window.open(cleanUrl, '_blank');
                 }
             }
+        }
+        
+        // Show instructions for StreamLare access
+        function showStreamLareInstructions(streamUrl) {
+            const modal = document.createElement('div');
+            modal.style.cssText = `
+                position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+                background: rgba(0,0,0,0.9); z-index: 10000; display: flex;
+                align-items: center; justify-content: center; backdrop-filter: blur(5px);
+            `;
+            
+            const content = document.createElement('div');
+            content.style.cssText = `
+                background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                color: white; padding: 30px; border-radius: 20px;
+                max-width: 500px; width: 90%; text-align: center;
+                box-shadow: 0 20px 40px rgba(0,0,0,0.3);
+            `;
+            
+            content.innerHTML = `
+                <div style="font-size: 3rem; margin-bottom: 20px;">🎬</div>
+                <h2 style="margin-bottom: 15px;">StreamLare Access</h2>
+                <p style="margin-bottom: 20px; line-height: 1.5; opacity: 0.9;">
+                    StreamLare has domain restrictions. For best results:
+                </p>
+                <div style="text-align: left; margin-bottom: 25px; background: rgba(255,255,255,0.1); padding: 15px; border-radius: 10px;">
+                    <p style="margin: 5px 0;">✅ <strong>Copy the URL</strong> and paste in new tab</p>
+                    <p style="margin: 5px 0;">✅ <strong>Right-click → Open in new tab</strong></p>
+                    <p style="margin: 5px 0;">✅ <strong>Access from Movie Page</strong> directly</p>
+                </div>
+                <div style="display: flex; gap: 10px; margin-bottom: 20px;">
+                    <button onclick="copyToClipboard('${streamUrl}'); this.innerHTML='✅ Copied!'" style="
+                        flex: 1; background: #4CAF50; color: white; border: none;
+                        padding: 12px 16px; border-radius: 8px; cursor: pointer; font-weight: 600;
+                    ">
+                        📋 Copy URL
+                    </button>
+                    <button onclick="window.open('${streamUrl}', '_blank')" style="
+                        flex: 1; background: #2196F3; color: white; border: none;
+                        padding: 12px 16px; border-radius: 8px; cursor: pointer; font-weight: 600;
+                    ">
+                        🔗 Try Direct
+                    </button>
+                </div>
+                <button onclick="this.parentElement.parentElement.remove()" style="
+                    background: #f44336; color: white; border: none;
+                    padding: 10px 20px; border-radius: 8px; cursor: pointer; font-weight: 600;
+                ">
+                    Close
+                </button>
+            `;
+            
+            modal.appendChild(content);
+            document.body.appendChild(modal);
+            
+            modal.addEventListener('click', function(e) {
+                if (e.target === modal) {
+                    modal.remove();
+                }
+            });
+        }
+        
+        // Copy URL to clipboard
+        function copyToClipboard(text) {
+            navigator.clipboard.writeText(text).then(function() {
+                console.log('URL copied to clipboard');
+            }).catch(function(err) {
+                console.error('Failed to copy URL: ', err);
+                // Fallback for older browsers
+                const textArea = document.createElement('textarea');
+                textArea.value = text;
+                document.body.appendChild(textArea);
+                textArea.select();
+                document.execCommand('copy');
+                document.body.removeChild(textArea);
+            });
         }
 
         // Removed all download functionality - now using simple Movie Page button
