@@ -468,8 +468,8 @@
                 // Clean URL first - remove all whitespace and control characters
                 const cleanUrl = url.toString().replace(/[\r\n\t\s]/g, '').trim();
                 
-                // For StreamLare URLs, show instructions since they have strict domain restrictions
-                if (cleanUrl.includes('vcdnlare.com') || cleanUrl.includes('streamlare.com')) {
+                // For StreamLare URLs (vcdnlare.com domain), show instructions since they have strict domain restrictions
+                if (cleanUrl.includes('vcdnlare.com')) {
                     // Show alert with copy option for StreamLare
                     if (confirm('StreamLare has domain restrictions. Click OK to copy URL to clipboard, then paste in new tab for best results.')) {
                         copyToClipboard(cleanUrl);

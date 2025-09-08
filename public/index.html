@@ -583,8 +583,8 @@
                 // Clean URL first - remove all whitespace and control characters
                 const cleanUrl = url.toString().replace(/[\r\n\t\s]/g, '').trim();
                 
-                // For StreamLare URLs, show instructions since they have strict domain restrictions
-                if (cleanUrl.includes('vcdnlare.com') || cleanUrl.includes('streamlare.com')) {
+                // For StreamLare URLs (vcdnlare.com domain), show instructions since they have strict domain restrictions
+                if (cleanUrl.includes('vcdnlare.com')) {
                     showStreamLareInstructions(cleanUrl);
                 } else {
                     // Open other streaming URLs directly
