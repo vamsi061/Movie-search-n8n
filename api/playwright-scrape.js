@@ -142,8 +142,9 @@ async function parseMoviesWithStreaming(html, query) {
         
         console.log(`Processing movie: ${title}`);
         
-        // Extract streaming URLs from the movie page
+        // Extract streaming URLs from the individual movie page
         const streamingUrls = await extractStreamingUrlsFromPage(moviePageUrl);
+        console.log(`Found ${streamingUrls.length} streaming URLs for ${title}`);
         
         // Extract other metadata
         const posterMatch = movieHtml.match(/<img[^>]*src="([^"]+)"[^>]*>/i);
