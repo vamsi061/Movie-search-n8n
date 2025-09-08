@@ -575,7 +575,7 @@
         searchInput.focus();
 
 
-        // Function to open streaming URLs - prioritize working alternatives
+        // Function to open streaming URLs - open all directly in new tab
         function openStreamingUrl(url) {
             console.log('Opening streaming URL:', url);
             
@@ -583,26 +583,8 @@
                 // Clean URL first - remove all whitespace and control characters
                 const cleanUrl = url.toString().replace(/[\r\n\t\s]/g, '').trim();
                 
-                // Waaw/NetuTV links - these need special handling
-                if (cleanUrl.includes('waaw') || cleanUrl.includes('netutv')) {
-                    // Open in popup window with specific dimensions for better streaming experience
-                    window.open(cleanUrl, '_blank', 'width=1200,height=800,scrollbars=yes,resizable=yes,toolbar=no,menubar=no');
-                }
-                // Other working alternatives - open directly
-                else if (cleanUrl.includes('uperbox.io') || cleanUrl.includes('streamhub') || 
-                         cleanUrl.includes('vidcloud') || cleanUrl.includes('doodstream') ||
-                         cleanUrl.includes('mixdrop') || cleanUrl.startsWith('magnet:')) {
-                    window.open(cleanUrl, '_blank');
-                }
-                // StreamLare/VCDNLare - use proxy (domain restricted)
-                else if (cleanUrl.includes('vcdnlare.com') || cleanUrl.includes('streamlare.com')) {
-                    const proxyUrl = `/api/stream-proxy?url=${encodeURIComponent(cleanUrl)}`;
-                    window.open(proxyUrl, '_blank', 'width=1200,height=800,scrollbars=yes,resizable=yes');
-                } 
-                // All other links - open directly
-                else {
-                    window.open(cleanUrl, '_blank');
-                }
+                // Open all streaming URLs directly in new tab (like main website does)
+                window.open(cleanUrl, '_blank');
             }
         }
 
