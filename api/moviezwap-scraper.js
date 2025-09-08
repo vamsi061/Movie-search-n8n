@@ -67,6 +67,9 @@ export default async function handler(req, res) {
     const html = await response.text();
     console.log('HTML fetched, length:', html.length);
 
+    // Log a sample of the HTML to debug the structure
+    console.log('HTML sample:', html.substring(html.indexOf('mylist') - 100, html.indexOf('mylist') + 200));
+
     // Extract movie data from HTML
     const movies = extractMovieData(html);
     
@@ -106,8 +109,9 @@ function extractMovieData(html) {
       return [];
     }
     
-    // Based on the HTML structure we saw: <div class='mylist'><img src='/images/arrow.gif' border='0'><a href='/movie/...'>Title</a></div>
-    const moviePattern = /<div class='mylist'>\s*<img[^>]*>\s*<a href='([^']+)'>([^<]+)<\/a>\s*<\/div>/gi;
+    // Exact pattern based on the HTML structure we found
+    // <div class='mylist'>   <img src='/images/arrow.gif' border='0'><a href='/movie/Lokah-Chapter-1:-Chandra-(2025)-Telugu.html'>Lokah Chapter 1: Chandra (2025) Telugu [DVDScr] </a> </div>
+    const moviePattern = /<div class='mylist'>\s*<img[^>]*border='0'>\s*<a href='([^']+)'>([^<]+)<\/a>\s*<\/div>/gi;
     let match;
     const foundMovies = new Set();
     
