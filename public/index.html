@@ -513,7 +513,7 @@
                         <div class="streaming-title">🎬 Watch Online:</div>
                         ${movie.streamingUrls && movie.streamingUrls.length > 0 
                             ? movie.streamingUrls.map((stream, index) => {
-                                const cleanUrl = stream.url.toString().replace(/\s+/g, '').replace(/\n/g, '').replace(/\r/g, '').trim();
+                                const cleanUrl = stream.url.toString().replace(/[\r\n\t\s]/g, '').trim();
                                 
                                 let serviceName = '📺 Stream';
                                 let serviceClass = 'priority-' + stream.priority;
@@ -554,7 +554,7 @@
                             : '<span style="color: #999; font-size: 0.85rem;">No streaming links available</span>'
                         }
                         <br>
-                        <a href="${movie.movie_page || movieUrl}" target="_blank" class="movie-page-btn">
+                        <a href="${movie.url || movieUrl}" target="_blank" class="movie-page-btn">
                             🎬 Movie Page
                         </a>
                     </div>
@@ -580,8 +580,8 @@
             console.log('Opening streaming URL:', url);
             
             if (url && url !== '#') {
-                // Clean URL first
-                const cleanUrl = url.toString().replace(/\s+/g, '').replace(/\n/g, '').replace(/\r/g, '').trim();
+                // Clean URL first - remove all whitespace and control characters
+                const cleanUrl = url.toString().replace(/[\r\n\t\s]/g, '').trim();
                 
                 // Waaw/NetuTV links - these need special handling
                 if (cleanUrl.includes('waaw') || cleanUrl.includes('netutv')) {
