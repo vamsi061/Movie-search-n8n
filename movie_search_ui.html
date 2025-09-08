@@ -216,11 +216,11 @@
             background: linear-gradient(135deg, #ff9800 0%, #f57c00 100%);
         }
 
-        .download-btn {
+        .movie-page-btn {
             display: inline-block;
             padding: 10px 20px;
             margin: 10px 5px 5px 0;
-            background: linear-gradient(135deg, #e74c3c 0%, #c0392b 100%);
+            background: linear-gradient(135deg, #4CAF50 0%, #45a049 100%);
             color: white;
             text-decoration: none;
             border-radius: 8px;
@@ -229,21 +229,18 @@
             cursor: pointer;
             transition: all 0.3s ease;
             border: none;
-            box-shadow: 0 2px 5px rgba(231, 76, 60, 0.3);
+            box-shadow: 0 2px 5px rgba(76, 175, 80, 0.3);
         }
 
-        .download-btn:hover {
+        .movie-page-btn:hover {
             transform: translateY(-2px);
-            box-shadow: 0 4px 10px rgba(231, 76, 60, 0.4);
+            box-shadow: 0 4px 10px rgba(76, 175, 80, 0.4);
+            text-decoration: none;
+            color: white;
         }
 
-        .download-btn:active {
+        .movie-page-btn:active {
             transform: translateY(0);
-        }
-
-        .download-btn.loading {
-            opacity: 0.7;
-            cursor: not-allowed;
         }
 
         .no-results {
@@ -450,9 +447,9 @@
                             <div class="streaming-title">🎬 Watch Online:</div>
                             ${streamingLinks}
                             <br>
-                            <button class="download-btn" onclick="downloadMovieAdvanced('${movie.title.replace(/'/g, "\\'")}', '${movie.url || '#'}', this)">
-                                📥 Download Movie
-                            </button>
+                            <a href="${movie.movie_page || movie.url || '#'}" target="_blank" class="movie-page-btn">
+                                🎬 Movie Page
+                            </a>
                         </div>
                     </div>
                 </div>
@@ -462,219 +459,7 @@
         // Auto-focus search input
         searchInput.focus();
 
-        // Advanced download function with bot bypass
-        async function downloadMovieAdvanced(title, moviePageUrl, buttonElement) {
-            console.log('Starting advanced download for:', title, 'from:', moviePageUrl);
-            
-            if (!moviePageUrl || moviePageUrl === '#') {
-                alert('Movie page URL not available for download extraction.');
-                return;
-            }
-            
-            // Show loading state
-            const originalText = buttonElement.innerHTML;
-            buttonElement.innerHTML = '⏳ Scanning for Downloads...';
-            buttonElement.classList.add('loading');
-            buttonElement.disabled = true;
-            
-            try {
-                // Try multiple download extraction methods
-                const downloadMethods = [
-                    { name: 'Enhanced Scraper', endpoint: '/api/download-all', method: 'enhanced' },
-                    { name: 'Playwright Scraper', endpoint: '/api/download-all', method: 'playwright' },
-                    { name: 'Basic Scraper', endpoint: '/api/download-all', method: 'basic' }
-                ];
-                
-                let downloadLinks = [];
-                
-                for (const method of downloadMethods) {
-                    try {
-                        buttonElement.innerHTML = `⏳ Trying ${method.name}...`;
-                        
-                        const response = await fetch(`${method.endpoint}?url=${encodeURIComponent(moviePageUrl)}&method=${method.method || 'basic'}`, {
-                            method: 'GET',
-                            headers: {
-                                'Accept': 'application/json',
-                                'Cache-Control': 'no-cache'
-                            }
-                        });
-                        
-                        if (response.ok) {
-                            const data = await response.json();
-                            if (data.downloadLinks && data.downloadLinks.length > 0) {
-                                downloadLinks = data.downloadLinks;
-                                console.log(`Success with ${method.name}:`, downloadLinks.length, 'links found');
-                                break;
-                            }
-                        }
-                    } catch (error) {
-                        console.log(`${method.name} failed:`, error.message);
-                        continue;
-                    }
-                }
-                
-                if (downloadLinks.length > 0) {
-                    showAdvancedDownloadOptions(title, downloadLinks, moviePageUrl);
-                } else {
-                    showDownloadFallback(title, moviePageUrl);
-                }
-                
-            } catch (error) {
-                console.error('Advanced download error:', error);
-                showDownloadFallback(title, moviePageUrl);
-            } finally {
-                // Reset button
-                buttonElement.innerHTML = originalText;
-                buttonElement.classList.remove('loading');
-                buttonElement.disabled = false;
-            }
-        }
-
-        // Enhanced download options modal
-        function showAdvancedDownloadOptions(title, downloadLinks, moviePageUrl) {
-            const modal = document.createElement('div');
-            modal.style.cssText = `
-                position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-                background: rgba(0,0,0,0.9); z-index: 10000; display: flex;
-                align-items: center; justify-content: center; backdrop-filter: blur(5px);
-            `;
-            
-            const content = document.createElement('div');
-            content.style.cssText = `
-                background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-                color: white; padding: 30px; border-radius: 20px;
-                max-width: 600px; width: 90%; max-height: 85vh; overflow-y: auto;
-                box-shadow: 0 20px 40px rgba(0,0,0,0.3);
-            `;
-            
-            // Group links by service
-            const groupedLinks = downloadLinks.reduce((groups, link) => {
-                const service = link.service || 'Other';
-                if (!groups[service]) groups[service] = [];
-                groups[service].push(link);
-                return groups;
-            }, {});
-            
-            const serviceIcons = {
-                'Google Drive': '🔗',
-                'Mega': '☁️',
-                'MediaFire': '📁',
-                'Dropbox': '📦',
-                'Torrent': '🧲',
-                'Direct Download': '⬇️',
-                'Other': '🔗'
-            };
-            
-            content.innerHTML = `
-                <div style="text-align: center; margin-bottom: 25px;">
-                    <h2 style="margin-bottom: 10px; font-size: 1.5rem;">📥 Download Options</h2>
-                    <h3 style="color: rgba(255,255,255,0.9); font-weight: normal; font-size: 1.1rem;">${title}</h3>
-                </div>
-                
-                <div style="margin-bottom: 25px;">
-                    ${Object.entries(groupedLinks).map(([service, links]) => `
-                        <div style="margin-bottom: 20px;">
-                            <h4 style="color: white; margin-bottom: 10px; font-size: 1rem; display: flex; align-items: center; gap: 8px;">
-                                ${serviceIcons[service] || '🔗'} ${service} (${links.length})
-                            </h4>
-                            ${links.map((link, index) => `
-                                <a href="${link.url}" target="_blank" style="
-                                    display: block; padding: 12px 16px; margin: 8px 0;
-                                    background: rgba(255,255,255,0.1); color: white; text-decoration: none;
-                                    border-radius: 10px; text-align: left; transition: all 0.3s ease;
-                                    border: 1px solid rgba(255,255,255,0.2);
-                                " onmouseover="this.style.background='rgba(255,255,255,0.2)'" 
-                                   onmouseout="this.style.background='rgba(255,255,255,0.1)'">
-                                    <div style="display: flex; justify-content: space-between; align-items: center;">
-                                        <div>
-                                            <div style="font-weight: 600; margin-bottom: 4px;">
-                                                ${link.quality !== 'Unknown' ? link.quality : 'Download'}
-                                            </div>
-                                            <div style="font-size: 0.85rem; opacity: 0.8;">
-                                                ${link.size !== 'Unknown' ? link.size : 'Click to download'}
-                                            </div>
-                                        </div>
-                                        <div style="font-size: 1.2rem;">⬇️</div>
-                                    </div>
-                                </a>
-                            `).join('')}
-                        </div>
-                    `).join('')}
-                </div>
-                
-                <div style="display: flex; gap: 10px; margin-top: 20px;">
-                    <button onclick="window.open('${moviePageUrl}', '_blank')" style="
-                        flex: 1; background: rgba(255,255,255,0.1); color: white; border: 1px solid rgba(255,255,255,0.3);
-                        padding: 12px 20px; border-radius: 10px; cursor: pointer; font-size: 0.9rem;
-                    ">
-                        🌐 Open Movie Page
-                    </button>
-                    <button onclick="this.parentElement.parentElement.parentElement.remove()" style="
-                        flex: 1; background: #e74c3c; color: white; border: none;
-                        padding: 12px 20px; border-radius: 10px; cursor: pointer; font-size: 0.9rem;
-                    ">
-                        ✕ Close
-                    </button>
-                </div>
-            `;
-            
-            modal.appendChild(content);
-            document.body.appendChild(modal);
-            
-            modal.addEventListener('click', function(e) {
-                if (e.target === modal) {
-                    modal.remove();
-                }
-            });
-        }
-        
-        // Fallback download function
-        function showDownloadFallback(title, moviePageUrl) {
-            const modal = document.createElement('div');
-            modal.style.cssText = `
-                position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-                background: rgba(0,0,0,0.8); z-index: 10000; display: flex;
-                align-items: center; justify-content: center;
-            `;
-            
-            const content = document.createElement('div');
-            content.style.cssText = `
-                background: white; padding: 30px; border-radius: 15px;
-                max-width: 450px; width: 90%; text-align: center;
-            `;
-            
-            content.innerHTML = `
-                <div style="font-size: 3rem; margin-bottom: 20px;">🎬</div>
-                <h3 style="margin-bottom: 15px; color: #333;">Download Not Available</h3>
-                <p style="color: #666; margin-bottom: 25px; line-height: 1.5;">
-                    We couldn't find direct download links for "${title}". 
-                    You can visit the movie page to look for download options manually.
-                </p>
-                <div style="display: flex; gap: 10px;">
-                    <button onclick="window.open('${moviePageUrl}', '_blank'); this.parentElement.parentElement.parentElement.remove();" style="
-                        flex: 1; background: #4CAF50; color: white; border: none;
-                        padding: 12px 20px; border-radius: 8px; cursor: pointer; font-weight: 600;
-                    ">
-                        🌐 Open Movie Page
-                    </button>
-                    <button onclick="this.parentElement.parentElement.parentElement.remove()" style="
-                        flex: 1; background: #f44336; color: white; border: none;
-                        padding: 12px 20px; border-radius: 8px; cursor: pointer; font-weight: 600;
-                    ">
-                        Close
-                    </button>
-                </div>
-            `;
-            
-            modal.appendChild(content);
-            document.body.appendChild(modal);
-            
-            modal.addEventListener('click', function(e) {
-                if (e.target === modal) {
-                    modal.remove();
-                }
-            });
-        }
+        // Removed all download functionality - now using simple Movie Page button
     </script>
 </body>
 </html>
