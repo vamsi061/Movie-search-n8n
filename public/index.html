@@ -323,19 +323,6 @@
                 </button>
             </form>
             
-            <!-- Tunnel URL Management -->
-            <div id="tunnelInfo" style="margin-top: 15px; padding: 10px; background: rgba(255,255,255,0.1); border-radius: 8px; display: none;">
-                <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
-                    <span style="color: white; font-size: 14px;">🌐 Tunnel:</span>
-                    <span id="currentTunnelUrl" style="color: #4CAF50; font-size: 14px; flex: 1; min-width: 200px;"></span>
-                    <button type="button" onclick="updateTunnelUrl()" style="padding: 5px 10px; background: #ff9800; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 12px;">
-                        Update URL
-                    </button>
-                    <button type="button" onclick="clearTunnelUrl()" style="padding: 5px 10px; background: #f44336; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 12px;">
-                        Clear
-                    </button>
-                </div>
-            </div>
         </div>
 
         <div id="loadingContainer" class="loading" style="display: none;">
@@ -356,10 +343,10 @@
     </div>
 
     <script>
-        // API URL - Use cloud scraper for direct video URLs
+        // API URL - Use existing playwright-scrape endpoint
         const API_URL = window.location.hostname === 'localhost' 
             ? 'http://localhost:8000/api/search'
-            : '/api/cloud-scraper';
+            : '/api/playwright-scrape';
         
         const searchForm = document.getElementById('searchForm');
         const searchInput = document.getElementById('searchInput');
@@ -384,7 +371,15 @@
             hideResults();
 
             try {
-                const response = await fetch(`${API_URL}?query=${encodeURIComponent(query)}`);
+                const response = await fetch(API_URL, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        query: query
+                    })
+                });
                 
                 if (!response.ok) {
                     throw new Error(`HTTP error! status: ${response.status}`);
@@ -504,53 +499,6 @@
         // Auto-focus search input
         searchInput.focus();
 
-        // Tunnel URL management functions
-        function updateTunnelUrl() {
-            const currentUrl = localStorage.getItem('ngrok_tunnel_url') || '';
-            const newUrl = prompt(
-                'Update your ngrok tunnel URL:\n\n' +
-                'Current URL: ' + currentUrl + '\n\n' +
-                '1. Run: ngrok http 8000\n' +
-                '2. Copy the new https URL (e.g., https://xyz789.ngrok.io)\n' +
-                '3. Paste it below:',
-                currentUrl
-            );
-            
-            if (newUrl && newUrl.startsWith('https://')) {
-                localStorage.setItem('ngrok_tunnel_url', newUrl);
-                updateTunnelDisplay();
-                showError('✅ Tunnel URL updated successfully!');
-                setTimeout(() => hideError(), 3000);
-            } else if (newUrl !== null) {
-                showError('❌ Please provide a valid https ngrok URL');
-                setTimeout(() => hideError(), 3000);
-            }
-        }
-
-        function clearTunnelUrl() {
-            if (confirm('Clear the stored tunnel URL? You will be prompted for a new one on next search.')) {
-                localStorage.removeItem('ngrok_tunnel_url');
-                updateTunnelDisplay();
-                showError('🗑️ Tunnel URL cleared');
-                setTimeout(() => hideError(), 3000);
-            }
-        }
-
-        function updateTunnelDisplay() {
-            const tunnelUrl = localStorage.getItem('ngrok_tunnel_url');
-            const tunnelInfo = document.getElementById('tunnelInfo');
-            const currentTunnelUrl = document.getElementById('currentTunnelUrl');
-            
-            if (tunnelUrl && window.location.hostname !== 'localhost') {
-                tunnelInfo.style.display = 'block';
-                currentTunnelUrl.textContent = tunnelUrl;
-            } else {
-                tunnelInfo.style.display = 'none';
-            }
-        }
-
-        // Initialize tunnel display on page load
-        updateTunnelDisplay();
 
         // Function to open streaming URLs - now handles direct video URLs
         function openStreamingUrl(url) {
