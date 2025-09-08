@@ -95,11 +95,15 @@ export default async function handler(req, res) {
     }
 
     if (!response.ok) {
+      console.log('Response not OK:', response.status, response.statusText);
       throw new Error(`HTTP error! status: ${response.status}`);
     }
 
     const html = await response.text();
     console.log('HTML fetched, length:', html.length);
+
+    // Log first 500 characters for debugging
+    console.log('HTML preview:', html.substring(0, 500));
 
     // Extract movie data from HTML
     const movies = extractMovieData(html);
@@ -130,50 +134,54 @@ function extractMovieData(html) {
   const movies = [];
   
   try {
-    // Common patterns for movie extraction from moviezwap
-    const moviePatterns = [
-      // Look for movie containers/cards
-      /<div[^>]*class[^>]*(?:movie|film|item|card|post)[^>]*>[\s\S]*?<\/div>/gi,
-      /<article[^>]*>[\s\S]*?<\/article>/gi,
-      /<li[^>]*class[^>]*(?:movie|film|item)[^>]*>[\s\S]*?<\/li>/gi,
-      // Look for table rows with movie data
-      /<tr[^>]*>[\s\S]*?<\/tr>/gi
-    ];
-
+    console.log('Starting movie extraction...');
+    
+    // Based on the HTML structure we saw: <div class='mylist'><img src='/images/arrow.gif' border='0'><a href='/movie/...'>Title</a></div>
+    const moviePattern = /<div class='mylist'>\s*<img[^>]*>\s*<a href='([^']+)'>([^<]+)<\/a>\s*<\/div>/gi;
+    let match;
     const foundMovies = new Set();
-
-    for (const pattern of moviePatterns) {
-      let match;
-      while ((match = pattern.exec(html)) !== null) {
-        const movieHtml = match[0];
-        const movie = parseMovieFromHtml(movieHtml);
-        
-        if (movie && movie.title && movie.title.length > 2) {
-          const movieKey = movie.title.toLowerCase().replace(/[^a-z0-9]/g, '');
-          if (!foundMovies.has(movieKey)) {
-            foundMovies.add(movieKey);
-            movies.push(movie);
-          }
+    
+    while ((match = moviePattern.exec(html)) !== null) {
+      const url = match[1];
+      const title = match[2].trim();
+      
+      console.log('Found movie:', title, 'URL:', url);
+      
+      if (title && title.length > 3) {
+        const movieKey = title.toLowerCase().replace(/[^a-z0-9]/g, '');
+        if (!foundMovies.has(movieKey)) {
+          foundMovies.add(movieKey);
+          movies.push({
+            title: cleanTitle(title),
+            url: resolveUrl(url, 'https://www.moviezwap.care'),
+            source: 'moviezwap.care',
+            year: extractYear(title),
+            quality: extractQuality(title),
+            language: extractLanguage(title),
+            genre: 'Unknown',
+            poster: generatePlaceholderPoster(title),
+            streamingUrls: []
+          });
         }
       }
     }
 
-    // If no movies found with patterns, try direct link extraction
+    // Fallback: if no movies found, try simpler pattern
     if (movies.length === 0) {
-      const linkPattern = /<a[^>]*href=[\"']([^\"']*)[\"'][^>]*>([^<]+)<\/a>/gi;
-      let match;
+      console.log('No movies found with primary pattern, trying fallback...');
+      const fallbackPattern = /<a href='([^']+\.html)'>([^<]+)<\/a>/gi;
+      let fallbackMatch;
       
-      while ((match = linkPattern.exec(html)) !== null) {
-        const url = match[1];
-        const title = match[2].trim();
+      while ((fallbackMatch = fallbackPattern.exec(html)) !== null) {
+        const url = fallbackMatch[1];
+        const title = fallbackMatch[2].trim();
         
-        // Filter for movie-like links
-        if (title.length > 3 && 
+        // Filter for movie-like content
+        if (title.length > 5 && 
             !title.toLowerCase().includes('home') &&
-            !title.toLowerCase().includes('contact') &&
-            !title.toLowerCase().includes('about') &&
-            !url.includes('javascript:') &&
-            (url.includes('movie') || url.includes('film') || url.includes('.php') || url.includes('.html'))) {
+            !title.toLowerCase().includes('search') &&
+            !title.toLowerCase().includes('category') &&
+            url.includes('movie')) {
           
           const movieKey = title.toLowerCase().replace(/[^a-z0-9]/g, '');
           if (!foundMovies.has(movieKey)) {
@@ -186,7 +194,7 @@ function extractMovieData(html) {
               quality: extractQuality(title),
               language: extractLanguage(title),
               genre: 'Unknown',
-              poster: null,
+              poster: generatePlaceholderPoster(title),
               streamingUrls: []
             });
           }
@@ -194,7 +202,8 @@ function extractMovieData(html) {
       }
     }
 
-    return movies.slice(0, 20); // Limit results
+    console.log('Total movies extracted:', movies.length);
+    return movies.slice(0, 15); // Limit results
 
   } catch (error) {
     console.error('Error extracting movie data:', error);
@@ -342,6 +351,18 @@ function resolveUrl(url, baseUrl) {
   } catch (e) {
     return null;
   }
+}
+
+function generatePlaceholderPoster(title) {
+  const shortTitle = title.substring(0, 20);
+  return `data:image/svg+xml;base64,${Buffer.from(`
+    <svg width="300" height="400" xmlns="http://www.w3.org/2000/svg">
+      <rect width="100%" height="100%" fill="#667eea"/>
+      <text x="50%" y="50%" font-family="Arial, sans-serif" font-size="16" fill="#ffffff" text-anchor="middle" dy=".3em">
+        ${shortTitle}
+      </text>
+    </svg>
+  `).toString('base64')}`;
 }
 
 // Helper function for base64 encoding in Node.js environment
