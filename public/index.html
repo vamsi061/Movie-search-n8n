@@ -342,10 +342,10 @@
     </div>
 
     <script>
-        // API URL - Use Vercel proxy to avoid CORS issues
+        // API URL - Use localhost bridge to connect to working FastAPI server
         const API_URL = window.location.hostname === 'localhost' 
-            ? 'http://localhost:5678/webhook/movie-scraper-villas'
-            : '/api/search';
+            ? 'http://localhost:8000/api/search'
+            : '/api/localhost-bridge';
         
         const searchForm = document.getElementById('searchForm');
         const searchInput = document.getElementById('searchInput');
