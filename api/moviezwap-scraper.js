@@ -39,34 +39,60 @@ export default async function handler(req, res) {
 
     const randomUserAgent = userAgents[Math.floor(Math.random() * userAgents.length)];
     
-    // Enhanced headers to mimic real browser
+    // Enhanced headers to mimic real browser and bypass 403
     const headers = {
       'User-Agent': randomUserAgent,
-      'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8',
-      'Accept-Language': 'en-US,en;q=0.9',
+      'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8',
+      'Accept-Language': 'en-US,en;q=0.9,hi;q=0.8',
       'Accept-Encoding': 'gzip, deflate, br',
-      'DNT': '1',
-      'Connection': 'keep-alive',
-      'Upgrade-Insecure-Requests': '1',
+      'Cache-Control': 'no-cache',
+      'Pragma': 'no-cache',
+      'Sec-Ch-Ua': '"Not_A Brand";v="8", "Chromium";v="120", "Google Chrome";v="120"',
+      'Sec-Ch-Ua-Mobile': '?0',
+      'Sec-Ch-Ua-Platform': '"Windows"',
       'Sec-Fetch-Dest': 'document',
       'Sec-Fetch-Mode': 'navigate',
-      'Sec-Fetch-Site': 'none',
+      'Sec-Fetch-Site': 'same-origin',
       'Sec-Fetch-User': '?1',
-      'Cache-Control': 'max-age=0',
-      'Referer': 'https://www.google.com/',
+      'Upgrade-Insecure-Requests': '1',
+      'Referer': 'https://www.moviezwap.care/',
+      'Origin': 'https://www.moviezwap.care'
     };
 
     // Add random delay to avoid rate limiting
-    await new Promise(resolve => setTimeout(resolve, Math.random() * 1000 + 500));
+    await new Promise(resolve => setTimeout(resolve, Math.random() * 2000 + 1000));
 
     const searchUrl = `https://www.moviezwap.care/search.php?q=${encodeURIComponent(query)}`;
     console.log('Fetching:', searchUrl);
 
-    const response = await fetch(searchUrl, {
+    // Try multiple approaches to bypass 403
+    let response;
+    const fetchOptions = {
       method: 'GET',
       headers: headers,
       redirect: 'follow'
-    });
+    };
+
+    try {
+      response = await fetch(searchUrl, fetchOptions);
+    } catch (error) {
+      // Fallback: try with different headers
+      console.log('First attempt failed, trying fallback...');
+      const fallbackHeaders = {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
+        'Accept': '*/*',
+        'Accept-Language': 'en-US,en;q=0.5',
+        'Accept-Encoding': 'identity',
+        'Connection': 'keep-alive',
+        'Referer': 'https://www.moviezwap.care/'
+      };
+      
+      response = await fetch(searchUrl, {
+        method: 'GET',
+        headers: fallbackHeaders,
+        redirect: 'follow'
+      });
+    }
 
     if (!response.ok) {
       throw new Error(`HTTP error! status: ${response.status}`);

@@ -414,13 +414,21 @@
                         })
                     }).then(res => res.json()).catch(err => ({ error: err.message, source: '5movierulz' })),
                     
-                    // MoviezWap search
+                    // MoviezWap search with fallback
                     fetch(`/api/moviezwap-scraper?q=${encodeURIComponent(query)}`, {
                         method: 'GET',
                         headers: {
                             'Content-Type': 'application/json',
                         }
-                    }).then(res => res.json()).catch(err => ({ error: err.message, source: 'moviezwap' }))
+                    }).then(res => res.json()).catch(async (err) => {
+                        console.log('MoviezWap direct failed, trying proxy...');
+                        try {
+                            const proxyResponse = await fetch(`/api/proxy-fetch?url=https://www.moviezwap.care/search.php&query=${encodeURIComponent(query)}`);
+                            return await proxyResponse.json();
+                        } catch (proxyErr) {
+                            return { error: `Direct: ${err.message}, Proxy: ${proxyErr.message}`, source: 'moviezwap' };
+                        }
+                    })
                 ];
 
                 const results = await Promise.allSettled(searchPromises);
@@ -566,7 +574,7 @@
                 <div class="movie-info">
                     <h3 class="movie-title">${cleanTitle}</h3>
                     <div class="movie-meta">
-                        ${movie.source ? `<span class="meta-tag" style="background: ${movie.source === '5movierulz.villas' ? '#e3f2fd' : '#f3e5f5'}; color: ${movie.source === '5movierulz.villas' ? '#1976d2' : '#7b1fa2'};">${movie.source === '5movierulz.villas' ? '5MovieRulz' : 'MoviezWap'}</span>` : ''}
+                        ${movie.source ? `<span class="meta-tag" style="background: ${movie.source === '5movierulz.villas' || movie.source === '5MovieRulz' ? '#e3f2fd' : '#f3e5f5'}; color: ${movie.source === '5movierulz.villas' || movie.source === '5MovieRulz' ? '#1976d2' : '#7b1fa2'};">${movie.source === '5movierulz.villas' || movie.source === '5MovieRulz' ? '5MovieRulz' : movie.source === 'moviezwap.care' ? 'MoviezWap' : movie.source}</span>` : ''}
                         ${movie.year && movie.year !== 'N/A' && movie.year !== 'Unknown' ? `<span class="meta-tag year">${movie.year}</span>` : ''}
                         ${movie.quality && movie.quality !== 'Unknown' ? `<span class="meta-tag quality">${movie.quality}</span>` : ''}
                         ${movie.language && movie.language !== 'Unknown' ? `<span class="meta-tag language">${movie.language}</span>` : ''}
