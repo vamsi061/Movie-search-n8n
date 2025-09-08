@@ -424,11 +424,12 @@
             const posterUrl = movie.poster || 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMzAwIiBoZWlnaHQ9IjIwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMTAwJSIgaGVpZ2h0PSIxMDAlIiBmaWxsPSIjZjBmMGYwIi8+PHRleHQgeD0iNTAlIiB5PSI1MCUiIGZvbnQtZmFtaWx5PSJBcmlhbCIgZm9udC1zaXplPSIxNCIgZmlsbD0iIzk5OSIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZHk9Ii4zZW0iPk5vIEltYWdlPC90ZXh0Pjwvc3ZnPg==';
             
             const streamingLinks = movie.streamingUrls && movie.streamingUrls.length > 0 
-                ? movie.streamingUrls.map(stream => 
-                    `<a href="${stream.url}" target="_blank" class="stream-link priority-${stream.priority}">
+                ? movie.streamingUrls.map(stream => {
+                    const cleanUrl = stream.url.toString().replace(/[\r\n\t\s]/g, '').trim();
+                    return `<a href="javascript:void(0)" onclick="event.stopPropagation(); openStreamingUrl('${cleanUrl}')" class="stream-link priority-${stream.priority}">
                         ${stream.service === 'streamlare' ? '🎬 StreamLare' : '📺 Stream'} (${stream.quality})
-                    </a>`
-                  ).join('')
+                    </a>`;
+                  }).join('')
                 : '<span style="color: #999; font-size: 0.85rem;">No streaming links available</span>';
 
             return `
@@ -458,6 +459,26 @@
 
         // Auto-focus search input
         searchInput.focus();
+
+        // Function to open streaming URLs
+        function openStreamingUrl(url) {
+            console.log('Opening streaming URL:', url);
+            
+            if (url && url !== '#') {
+                // Clean URL first - remove all whitespace and control characters
+                const cleanUrl = url.toString().replace(/[\r\n\t\s]/g, '').trim();
+                
+                // StreamLare/VCDNLare - use proxy (domain restricted)
+                if (cleanUrl.includes('vcdnlare.com') || cleanUrl.includes('streamlare.com')) {
+                    const proxyUrl = `/api/stream-proxy?url=${encodeURIComponent(cleanUrl)}`;
+                    window.open(proxyUrl, '_blank', 'width=1200,height=800,scrollbars=yes,resizable=yes');
+                } 
+                // All other links - open directly
+                else {
+                    window.open(cleanUrl, '_blank');
+                }
+            }
+        }
 
         // Removed all download functionality - now using simple Movie Page button
     </script>
