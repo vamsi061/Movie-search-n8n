@@ -460,7 +460,7 @@
         // Auto-focus search input
         searchInput.focus();
 
-        // Function to open streaming URLs - open all directly in new tab
+        // Function to open streaming URLs with proper referer handling
         function openStreamingUrl(url) {
             console.log('Opening streaming URL:', url);
             
@@ -468,8 +468,14 @@
                 // Clean URL first - remove all whitespace and control characters
                 const cleanUrl = url.toString().replace(/[\r\n\t\s]/g, '').trim();
                 
-                // Open all streaming URLs directly in new tab (like main website does)
-                window.open(cleanUrl, '_blank');
+                // For StreamLare/VCDNLare URLs, use redirect to set proper referer
+                if (cleanUrl.includes('vcdnlare.com') || cleanUrl.includes('streamlare.com')) {
+                    const redirectUrl = `/api/stream-redirect?url=${encodeURIComponent(cleanUrl)}`;
+                    window.open(redirectUrl, '_blank');
+                } else {
+                    // Open other streaming URLs directly
+                    window.open(cleanUrl, '_blank');
+                }
             }
         }
 
