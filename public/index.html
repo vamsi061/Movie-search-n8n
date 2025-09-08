@@ -342,10 +342,10 @@
     </div>
 
     <script>
-        // API URL - Use localhost bridge to connect to working FastAPI server
+        // API URL - Use tunnel bridge or provide instructions
         const API_URL = window.location.hostname === 'localhost' 
             ? 'http://localhost:8000/api/search'
-            : '/api/localhost-bridge';
+            : '/api/tunnel-bridge';
         
         const searchForm = document.getElementById('searchForm');
         const searchInput = document.getElementById('searchInput');
@@ -370,7 +370,36 @@
             hideResults();
 
             try {
-                const response = await fetch(`${API_URL}?query=${encodeURIComponent(query)}`);
+                // Check if we need tunnel URL for deployed version
+                let apiUrl = `${API_URL}?query=${encodeURIComponent(query)}`;
+                
+                if (API_URL.includes('tunnel-bridge')) {
+                    const storedTunnelUrl = localStorage.getItem('ngrok_tunnel_url');
+                    
+                    if (storedTunnelUrl) {
+                        apiUrl += `&tunnel_url=${encodeURIComponent(storedTunnelUrl)}`;
+                    } else {
+                        // Prompt user for tunnel URL
+                        hideLoading();
+                        const tunnelUrl = prompt(
+                            'Please provide your ngrok tunnel URL:\n\n' +
+                            '1. Run: ngrok http 8000\n' +
+                            '2. Copy the https URL (e.g., https://abc123.ngrok.io)\n' +
+                            '3. Paste it below:'
+                        );
+                        
+                        if (tunnelUrl && tunnelUrl.startsWith('https://')) {
+                            localStorage.setItem('ngrok_tunnel_url', tunnelUrl);
+                            apiUrl += `&tunnel_url=${encodeURIComponent(tunnelUrl)}`;
+                            showLoading();
+                        } else {
+                            showError('Valid ngrok tunnel URL required. Please run "ngrok http 8000" first.');
+                            return;
+                        }
+                    }
+                }
+                
+                const response = await fetch(apiUrl);
                 
                 if (!response.ok) {
                     throw new Error(`HTTP error! status: ${response.status}`);
@@ -386,6 +415,8 @@
 
                 if (data.results && data.results.length > 0) {
                     displayResults(data.results, data.total || data.results.length, query);
+                } else if (data.error) {
+                    showError(data.error + (data.message ? ': ' + data.message : ''));
                 } else {
                     console.log('No results found. Data structure:', data);
                     showNoResults();
