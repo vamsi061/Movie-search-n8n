@@ -373,10 +373,8 @@
     </div>
 
     <script>
-        // API URL - Use existing playwright-scrape endpoint
-        const API_URL = window.location.hostname === 'localhost' 
-            ? 'http://localhost:8000/api/search'
-            : '/api/playwright-scrape';
+        // API URL - Use N8N webhook
+        const API_URL = 'https://n8n-instance-vnyx.onrender.com/webhook/movie-scraper-villas';
         
         const searchForm = document.getElementById('searchForm');
         const searchInput = document.getElementById('searchInput');
@@ -401,120 +399,36 @@
             hideResults();
 
             try {
-                // Search from multiple sources simultaneously
-                const searchPromises = [
-                    // 5MovieRulz search
-                    fetch(API_URL, {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json',
-                        },
-                        body: JSON.stringify({
-                            query: query
-                        })
-                    }).then(res => res.json()).catch(err => ({ error: err.message, source: '5movierulz' })),
-                    
-                    // MoviezWap search with multiple fallbacks
-                    fetch(`/api/moviezwap-scraper?q=${encodeURIComponent(query)}`, {
-                        method: 'GET',
-                        headers: {
-                            'Content-Type': 'application/json',
-                        }
-                    }).then(res => res.json()).then(data => {
-                        // If scraper fails with 403, try bypass method
-                        if (!data.success && data.error && data.error.includes('403')) {
-                            console.log('MoviezWap 403 detected, trying bypass...');
-                            return fetch(`/api/moviezwap-bypass?query=${encodeURIComponent(query)}`)
-                                .then(res => res.json());
-                        }
-                        return data;
-                    }).catch(async (err) => {
-                        console.log('MoviezWap direct failed, trying bypass...');
-                        try {
-                            const bypassResponse = await fetch(`/api/moviezwap-bypass?query=${encodeURIComponent(query)}`);
-                            return await bypassResponse.json();
-                        } catch (bypassErr) {
-                            return { error: `Direct: ${err.message}, Bypass: ${bypassErr.message}`, source: 'moviezwap' };
-                        }
-                    })
-                ];
+                // Search using N8N webhook
+                const response = await fetch(`${API_URL}?query=${encodeURIComponent(query)}`, {
+                    method: 'GET',
+                    headers: {
+                        'Accept': 'application/json',
+                    }
+                });
 
-                const results = await Promise.allSettled(searchPromises);
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+
+                const data = await response.json();
                 hideLoading();
 
-                // Process results from both sources
-                let allMovies = [];
-                let totalCount = 0;
-                let sources = [];
+                console.log('N8N API Response:', data);
 
-                // Process 5MovieRulz results
-                if (results[0].status === 'fulfilled' && results[0].value.results) {
-                    const movieRulzData = results[0].value;
-                    if (movieRulzData.results && movieRulzData.results.length > 0) {
-                        // Add source identifier to each movie
-                        const moviesWithSource = movieRulzData.results.map(movie => ({
-                            ...movie,
-                            source: movie.source || '5movierulz.villas'
-                        }));
-                        allMovies.push(...moviesWithSource);
-                        totalCount += movieRulzData.results.length;
-                        sources.push(`5MovieRulz (${movieRulzData.results.length})`);
-                    }
-                }
-
-                // Process MoviezWap results
-                if (results[1].status === 'fulfilled' && results[1].value) {
-                    const moviezWapData = results[1].value;
-                    console.log('MoviezWap response:', moviezWapData);
+                if (data.results && data.results.length > 0) {
+                    // Add source identifier to each movie
+                    const moviesWithSource = data.results.map(movie => ({
+                        ...movie,
+                        source: movie.source || '5movierulz.villas'
+                    }));
                     
-                    if (moviezWapData.success && moviezWapData.results && moviezWapData.results.length > 0) {
-                        console.log('Adding MoviezWap movies:', moviezWapData.results.length);
-                        allMovies.push(...moviezWapData.results);
-                        totalCount += moviezWapData.results.length;
-                        sources.push(`MoviezWap (${moviezWapData.results.length})`);
-                    } else if (moviezWapData.results && moviezWapData.results.length > 0) {
-                        // Handle case where success flag might be missing but results exist
-                        console.log('Adding MoviezWap movies (no success flag):', moviezWapData.results.length);
-                        allMovies.push(...moviezWapData.results);
-                        totalCount += moviezWapData.results.length;
-                        sources.push(`MoviezWap (${moviezWapData.results.length})`);
-                    } else {
-                        console.log('No MoviezWap results or failed:', moviezWapData.message || moviezWapData.error);
-                    }
-                }
-
-                // Debug logging
-                console.log('Combined results:', allMovies);
-                console.log('Total movies found:', totalCount);
-                console.log('Sources:', sources);
-
-                if (allMovies.length > 0) {
-                    // Sort movies by source and quality
-                    allMovies.sort((a, b) => {
-                        // Prioritize 5MovieRulz results
-                        if (a.source !== b.source) {
-                            if (a.source === '5movierulz.villas') return -1;
-                            if (b.source === '5movierulz.villas') return 1;
-                        }
-                        return 0;
-                    });
-
-                    displayResults(allMovies, totalCount, query, sources);
+                    displayResults(moviesWithSource, data.total || moviesWithSource.length, query, [`5MovieRulz (${moviesWithSource.length})`]);
+                } else if (data.error) {
+                    showError(data.error + (data.message ? ': ' + data.message : ''));
                 } else {
-                    // Check for errors
-                    const errors = [];
-                    if (results[0].status === 'fulfilled' && results[0].value.error) {
-                        errors.push(`5MovieRulz: ${results[0].value.error}`);
-                    }
-                    if (results[1].status === 'fulfilled' && results[1].value.error) {
-                        errors.push(`MoviezWap: ${results[1].value.error}`);
-                    }
-
-                    if (errors.length > 0) {
-                        showError(`Search failed: ${errors.join(', ')}`);
-                    } else {
-                        showNoResults();
-                    }
+                    console.log('No results found. Data structure:', data);
+                    showNoResults();
                 }
 
             } catch (error) {
@@ -593,7 +507,7 @@
                 <div class="movie-info">
                     <h3 class="movie-title">${cleanTitle}</h3>
                     <div class="movie-meta">
-                        ${movie.source ? `<span class="meta-tag" style="background: ${movie.source === 'moviezwap.care' ? '#f3e5f5' : '#e3f2fd'}; color: ${movie.source === 'moviezwap.care' ? '#7b1fa2' : '#1976d2'};">${movie.source === 'moviezwap.care' ? 'MoviezWap' : '5MovieRulz'}</span>` : ''}
+                        ${movie.source ? `<span class="meta-tag" style="background: #e3f2fd; color: #1976d2;">5MovieRulz</span>` : ''}
                         ${movie.year && movie.year !== 'N/A' && movie.year !== 'Unknown' ? `<span class="meta-tag year">${movie.year}</span>` : ''}
                         ${movie.quality && movie.quality !== 'Unknown' ? `<span class="meta-tag quality">${movie.quality}</span>` : ''}
                         ${movie.language && movie.language !== 'Unknown' ? `<span class="meta-tag language">${movie.language}</span>` : ''}
