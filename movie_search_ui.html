@@ -468,8 +468,14 @@
                 // Clean URL first - remove all whitespace and control characters
                 const cleanUrl = url.toString().replace(/[\r\n\t\s]/g, '').trim();
                 
-                // Open all streaming URLs directly - no modifications
-                window.open(cleanUrl, '_blank');
+                // For StreamLare URLs, use direct server response (like localhost/main site)
+                if (cleanUrl.includes('vcdnlare.com')) {
+                    // Use server to fetch and serve content directly
+                    window.open(`/api/stream-direct?url=${encodeURIComponent(cleanUrl)}`, '_blank');
+                } else {
+                    // Open other streaming URLs directly
+                    window.open(cleanUrl, '_blank');
+                }
             }
         }
         
