@@ -403,11 +403,13 @@
             const posterUrl = movie.poster || 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMzAwIiBoZWlnaHQ9IjIwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMTAwJSIgaGVpZ2h0PSIxMDAlIiBmaWxsPSIjZjBmMGYwIi8+PHRleHQgeD0iNTAlIiB5PSI1MCUiIGZvbnQtZmFtaWx5PSJBcmlhbCIgZm9udC1zaXplPSIxNCIgZmlsbD0iIzk5OSIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZHk9Ii4zZW0iPk5vIEltYWdlPC90ZXh0Pjwvc3ZnPg==';
             
             const streamingLinks = movie.streamingUrls && movie.streamingUrls.length > 0 
-                ? movie.streamingUrls.map((stream, index) => 
-                    `<a href="${stream.url}" target="_blank" rel="noopener noreferrer" class="stream-link priority-${stream.priority}" data-url="${stream.url}" data-service="${stream.service}" onclick="handleStreamClick(event, this)">
+                ? movie.streamingUrls.map((stream, index) => {
+                    // Clean URL exactly like working code - remove whitespace and carriage returns
+                    const cleanUrl = stream.url.toString().replace(/\s+/g, '').replace(/\n/g, '').replace(/\r/g, '').trim();
+                    return `<a href="javascript:void(0)" onclick="openStreamingUrl('${cleanUrl}')" class="stream-link priority-${stream.priority}">
                         ${stream.service === 'streamlare' ? '🎬 StreamLare' : '📺 Stream'} (${stream.quality})
-                    </a>`
-                  ).join('')
+                    </a>`;
+                  }).join('')
                 : '<span style="color: #999; font-size: 0.85rem;">No streaming links available</span>';
 
             return `
@@ -442,36 +444,13 @@
         // Auto-focus search input
         searchInput.focus();
 
-        // Simple function to handle streaming link clicks
-        function handleStreamClick(event, element) {
-            event.preventDefault();
+        // Simple function to open streaming URLs - matches working code exactly
+        function openStreamingUrl(url) {
+            console.log('Opening streaming URL:', url);
             
-            const url = element.getAttribute('data-url');
-            const service = element.getAttribute('data-service');
-            
-            console.log('Opening streaming link:', url, 'Service:', service);
-            
-            // For StreamLare/VCDNLare links, use our proxy to handle proper context
-            if (url.includes('vcdnlare.com') || url.includes('streamlare.com')) {
-                // Show loading message
-                element.innerHTML = '⏳ Opening...';
-                element.style.opacity = '0.7';
-                
-                // Use our stream proxy to handle the redirect with proper context
-                const proxyUrl = `/api/stream-proxy?url=${encodeURIComponent(url)}&referer=${encodeURIComponent(window.location.href)}`;
-                
-                setTimeout(function() {
-                    window.open(proxyUrl, '_blank', 'noopener,noreferrer');
-                    
-                    // Reset button after 2 seconds
-                    setTimeout(function() {
-                        element.innerHTML = service === 'streamlare' ? '🎬 StreamLare' : '📺 Stream';
-                        element.style.opacity = '1';
-                    }, 2000);
-                }, 500);
-            } else {
-                // For other streaming services, open immediately
-                window.open(url, '_blank', 'noopener,noreferrer');
+            // Open directly like the working code - no proxy, no delays, no complexity
+            if (url && url !== '#') {
+                window.open(url, '_blank');
             }
         }
 
