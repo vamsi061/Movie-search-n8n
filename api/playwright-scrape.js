@@ -226,7 +226,32 @@ async function extractStreamingUrlsFromPage(moviePageUrl) {
       }
     }
     
-    // PRIORITY 1: Look for JavaScript locations array (like working 5movierulz.villas site)
+    // PRIORITY 1: Look for working alternatives (Netutv, Uperbox, etc.)
+    const alternativePatterns = [
+      // Netutv links
+      /href="([^"]*waaw[^"]*)" target="_blank"/gi,
+      /href="([^"]*netutv[^"]*)" target="_blank"/gi,
+      
+      // Uperbox links  
+      /href="([^"]*uperbox\.io[^"]*)" target="_blank"/gi,
+      
+      // Direct streaming services
+      /href="([^"]*(?:streamhub|vidcloud|doodstream|mixdrop)[^"]*)" target="_blank"/gi,
+      
+      // Magnet links (torrents)
+      /href="(magnet:\?[^"]*)" target="_blank"/gi,
+    ];
+    
+    for (const pattern of alternativePatterns) {
+      let match;
+      while ((match = pattern.exec(html)) !== null) {
+        const url = match[1];
+        foundUrls.add(url);
+        console.log('✅ Found working alternative URL:', url);
+      }
+    }
+    
+    // PRIORITY 2: Look for JavaScript locations array (StreamLare - as fallback)
     const jsLocationPattern = /var\s+locations\s*=\s*\[([^\]]+)\]/gi;
     let jsMatch;
     while ((jsMatch = jsLocationPattern.exec(html)) !== null) {
@@ -240,7 +265,7 @@ async function extractStreamingUrlsFromPage(moviePageUrl) {
           const cleanUrl = urlMatch.replace(/\"/g, '').replace(/\\\//g, '/');
           if (cleanUrl.includes('vcdnlare') || cleanUrl.includes('streamlare')) {
             foundUrls.add(cleanUrl);
-            console.log('✅ Found complete StreamLare URL with parameters:', cleanUrl);
+            console.log('Found StreamLare URL (fallback):', cleanUrl);
           }
         }
       }
