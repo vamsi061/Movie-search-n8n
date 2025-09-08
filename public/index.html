@@ -488,15 +488,15 @@
         // Auto-focus search input
         searchInput.focus();
 
-        // Function to open streaming URLs with localhost proxy for StreamLare
+        // Function to open streaming URLs with localhost simulation for StreamLare
         function openStreamingUrl(url) {
             console.log('Opening streaming URL:', url);
             
             if (url && url !== '#') {
-                // For StreamLare/VCDNLare links, use localhost proxy to bypass domain restrictions
+                // For StreamLare/VCDNLare links, use localhost simulator to get sid and t parameters
                 if (url.includes('vcdnlare.com') || url.includes('streamlare.com')) {
-                    const proxyUrl = `/api/localhost-proxy?url=${encodeURIComponent(url)}`;
-                    window.open(proxyUrl, '_blank', 'width=1200,height=800');
+                    const simulatorUrl = `/api/localhost-simulator?url=${encodeURIComponent(url)}`;
+                    window.open(simulatorUrl, '_blank', 'width=1200,height=800,scrollbars=yes,resizable=yes');
                 } else {
                     // For other links, open directly
                     window.open(url, '_blank');
