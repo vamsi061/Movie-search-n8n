@@ -356,10 +356,10 @@
     </div>
 
     <script>
-        // API URL - Use tunnel bridge or provide instructions
+        // API URL - Use cloud scraper for direct video URLs
         const API_URL = window.location.hostname === 'localhost' 
             ? 'http://localhost:8000/api/search'
-            : '/api/tunnel-bridge';
+            : '/api/cloud-scraper';
         
         const searchForm = document.getElementById('searchForm');
         const searchInput = document.getElementById('searchInput');
@@ -384,36 +384,7 @@
             hideResults();
 
             try {
-                // Check if we need tunnel URL for deployed version
-                let apiUrl = `${API_URL}?query=${encodeURIComponent(query)}`;
-                
-                if (API_URL.includes('tunnel-bridge')) {
-                    const storedTunnelUrl = localStorage.getItem('ngrok_tunnel_url');
-                    
-                    if (storedTunnelUrl) {
-                        apiUrl += `&tunnel_url=${encodeURIComponent(storedTunnelUrl)}`;
-                    } else {
-                        // Prompt user for tunnel URL
-                        hideLoading();
-                        const tunnelUrl = prompt(
-                            'Please provide your ngrok tunnel URL:\n\n' +
-                            '1. Run: ngrok http 8000\n' +
-                            '2. Copy the https URL (e.g., https://abc123.ngrok.io)\n' +
-                            '3. Paste it below:'
-                        );
-                        
-                        if (tunnelUrl && tunnelUrl.startsWith('https://')) {
-                            localStorage.setItem('ngrok_tunnel_url', tunnelUrl);
-                            apiUrl += `&tunnel_url=${encodeURIComponent(tunnelUrl)}`;
-                            showLoading();
-                        } else {
-                            showError('Valid ngrok tunnel URL required. Please run "ngrok http 8000" first.');
-                            return;
-                        }
-                    }
-                }
-                
-                const response = await fetch(apiUrl);
+                const response = await fetch(`${API_URL}?query=${encodeURIComponent(query)}`);
                 
                 if (!response.ok) {
                     throw new Error(`HTTP error! status: ${response.status}`);
@@ -581,15 +552,15 @@
         // Initialize tunnel display on page load
         updateTunnelDisplay();
 
-        // Function to open streaming URLs with direct redirect (like working code)
+        // Function to open streaming URLs - now handles direct video URLs
         function openStreamingUrl(url) {
             console.log('Opening streaming URL:', url);
             
             if (url && url !== '#') {
-                // For StreamLare/VCDNLare links, use direct redirect approach
-                if (url.includes('vcdnlare.com') || url.includes('streamlare.com')) {
-                    const redirectUrl = `/api/direct-redirect?url=${encodeURIComponent(url)}`;
-                    window.open(redirectUrl, '_blank');
+                // Direct video files can be opened directly
+                if (url.includes('.mp4') || url.includes('.m3u8') || url.includes('.mkv') || 
+                    url.includes('drive.google') || url.includes('direct-video')) {
+                    window.open(url, '_blank');
                 } else {
                     // For other links, open directly
                     window.open(url, '_blank');
