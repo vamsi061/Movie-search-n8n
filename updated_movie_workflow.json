@@ -40,7 +40,7 @@
     {
       "parameters": {
         "method": "POST",
-        "url": "https://movie-search-n8n.vercel.app/api/playwright-scrape",
+        "url": "https://n8n-instance-vnyx.onrender.com/api/search",
         "sendBody": true,
         "contentType": "json",
         "jsonParameters": {
