@@ -226,7 +226,27 @@ async function extractStreamingUrlsFromPage(moviePageUrl) {
       }
     }
     
-    // Look for links with "watch online" text
+    // PRIORITY 1: Look for JavaScript locations array (like working 5movierulz.villas site)
+    const jsLocationPattern = /var\s+locations\s*=\s*\[([^\]]+)\]/gi;
+    let jsMatch;
+    while ((jsMatch = jsLocationPattern.exec(html)) !== null) {
+      const locationsString = jsMatch[1];
+      console.log('Found JavaScript locations array:', locationsString);
+      
+      // Extract URLs from the JavaScript array - these already have sid and t parameters!
+      const urlMatches = locationsString.match(/\"([^\"]*(?:vcdnlare|streamlare)[^\"]*)\"/gi);
+      if (urlMatches) {
+        for (const urlMatch of urlMatches) {
+          const cleanUrl = urlMatch.replace(/\"/g, '').replace(/\\\//g, '/');
+          if (cleanUrl.includes('vcdnlare') || cleanUrl.includes('streamlare')) {
+            foundUrls.add(cleanUrl);
+            console.log('✅ Found complete StreamLare URL with parameters:', cleanUrl);
+          }
+        }
+      }
+    }
+    
+    // PRIORITY 2: Look for links with "watch online" text
     const watchLinkPattern = /<a[^>]*href="([^"]+)"[^>]*>.*?(?:watch.*?online|streamlare).*?<\/a>/gi;
     let watchMatch;
     while ((watchMatch = watchLinkPattern.exec(html)) !== null) {
