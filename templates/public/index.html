@@ -343,10 +343,10 @@
     </div>
 
     <script>
-        // API URL - Use existing playwright-scrape endpoint
+        // API URL - Use enhanced search endpoint with streaming link extraction
         const API_URL = window.location.hostname === 'localhost' 
             ? 'http://localhost:8000/api/search'
-            : '/api/playwright-scrape';
+            : '/api/search';
         
         const searchForm = document.getElementById('searchForm');
         const searchInput = document.getElementById('searchInput');
@@ -371,14 +371,11 @@
             hideResults();
 
             try {
-                const response = await fetch(API_URL, {
-                    method: 'POST',
+                const response = await fetch(`${API_URL}?query=${encodeURIComponent(query)}`, {
+                    method: 'GET',
                     headers: {
-                        'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify({
-                        query: query
-                    })
+                        'Accept': 'application/json',
+                    }
                 });
                 
                 if (!response.ok) {

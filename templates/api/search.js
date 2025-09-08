@@ -69,71 +69,285 @@ export default async function handler(req, res) {
       });
     }
     
-    // Function to clean StreamLare URLs (keep original format but clean any malformed URLs)
-    function fixStreamingUrls(results) {
-      if (!Array.isArray(results)) return results;
+    // Function to extract all streaming links from movie page
+    async function extractStreamingLinksFromMoviePage(moviePageUrl) {
+      try {
+        console.log('Extracting streaming links from:', moviePageUrl);
+        
+        const response = await fetch(moviePageUrl, {
+          method: 'GET',
+          headers: {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
+            'Accept-Language': 'en-US,en;q=0.5',
+            'Referer': 'https://www.5movierulz.villas/',
+          },
+          timeout: 10000 // 10 second timeout for individual page fetches
+        });
+
+        if (!response.ok) {
+          console.error(`Failed to fetch movie page: ${response.status}`);
+          return [];
+        }
+
+        const html = await response.text();
+        return extractAllStreamingLinks(html);
+        
+      } catch (error) {
+        console.error('Error extracting streaming links from movie page:', error);
+        return [];
+      }
+    }
+
+    function extractAllStreamingLinks(html) {
+      const streamingLinks = [];
       
-      return results.map(movie => {
-        if (movie.streamingUrls && Array.isArray(movie.streamingUrls)) {
-          movie.streamingUrls = movie.streamingUrls.map(stream => {
-            let url = stream.url;
+      try {
+        // Comprehensive patterns for different streaming services
+        const streamingPatterns = [
+          // StreamLare patterns
+          {
+            pattern: /href=[\"']([^\"']*(?:streamlare|vcdnlare)\.com[^\"']*)[\"']/gi,
+            service: 'streamlare',
+            priority: 1,
+            quality: 'HD'
+          },
+          
+          // DoodStream patterns
+          {
+            pattern: /href=[\"']([^\"']*doodstream\.com[^\"']*)[\"']/gi,
+            service: 'doodstream',
+            priority: 2,
+            quality: 'HD'
+          },
+          
+          // MixDrop patterns
+          {
+            pattern: /href=[\"']([^\"']*mixdrop\.co[^\"']*)[\"']/gi,
+            service: 'mixdrop',
+            priority: 2,
+            quality: 'HD'
+          },
+          
+          // NetuTV/Waaw patterns
+          {
+            pattern: /href=[\"']([^\"']*waaw\/\?l=[^\"']*)[\"']/gi,
+            service: 'netutv',
+            priority: 1,
+            quality: 'HD'
+          },
+          
+          // Uperbox patterns
+          {
+            pattern: /href=[\"']([^\"']*uperbox\.io[^\"']*)[\"']/gi,
+            service: 'uperbox',
+            priority: 1,
+            quality: 'HD'
+          },
+          
+          // VidCloud patterns
+          {
+            pattern: /href=[\"']([^\"']*vidcloud[^\"']*)[\"']/gi,
+            service: 'vidcloud',
+            priority: 2,
+            quality: 'HD'
+          },
+          
+          // StreamHub patterns
+          {
+            pattern: /href=[\"']([^\"']*streamhub[^\"']*)[\"']/gi,
+            service: 'streamhub',
+            priority: 2,
+            quality: 'HD'
+          },
+          
+          // Torrent/Magnet patterns
+          {
+            pattern: /href=[\"']([^\"']*magnet:[^\"']*)[\"']/gi,
+            service: 'torrent',
+            priority: 3,
+            quality: 'Various'
+          }
+        ];
+
+        const foundUrls = new Set();
+
+        // Extract URLs using patterns
+        for (const patternObj of streamingPatterns) {
+          let match;
+          while ((match = patternObj.pattern.exec(html)) !== null) {
+            let streamUrl = match[1];
             
-            // Clean up any malformed URLs but keep the original format
-            if (url.includes('vcdnlare.com') || url.includes('streamlare.com')) {
-              // Remove any carriage returns or newlines that might break the URL
-              url = url.replace(/[\r\n]/g, '');
-              // Ensure proper protocol
-              if (!url.startsWith('http')) {
-                url = 'https://' + url;
-              }
+            // Clean and validate URL
+            if (streamUrl.startsWith('//')) {
+              streamUrl = 'https:' + streamUrl;
+            } else if (streamUrl.startsWith('/')) {
+              streamUrl = 'https://www.5movierulz.villas' + streamUrl;
             }
             
-            return {
-              ...stream,
-              url: url,
-              originalUrl: stream.url // Keep original for debugging
-            };
-          });
-        }
-        
-        // Also clean the main URL if it's a streaming URL
-        if (movie.url && (movie.url.includes('vcdnlare.com') || movie.url.includes('streamlare.com'))) {
-          movie.url = movie.url.replace(/[\r\n]/g, '');
-          if (!movie.url.startsWith('http')) {
-            movie.url = 'https://' + movie.url;
+            // Skip invalid URLs
+            if (streamUrl.includes('javascript:') || streamUrl.includes('mailto:') || 
+                streamUrl.includes('#') || streamUrl.length < 10) {
+              continue;
+            }
+            
+            // Clean up any malformed URLs
+            streamUrl = streamUrl.replace(/[\r\n]/g, '').trim();
+            
+            // Avoid duplicates
+            if (!foundUrls.has(streamUrl)) {
+              foundUrls.add(streamUrl);
+              
+              // Try to extract quality from URL or surrounding context
+              let quality = patternObj.quality;
+              const qualityMatch = streamUrl.match(/\b(720p|1080p|4K|HD|HDRip|BluRay|DVDRip|WebRip|CAM|TS)\b/i);
+              if (qualityMatch) {
+                quality = qualityMatch[0];
+              }
+              
+              streamingLinks.push({
+                url: streamUrl,
+                service: patternObj.service,
+                priority: patternObj.priority,
+                quality: quality,
+                type: patternObj.service === 'torrent' ? 'torrent' : 'stream'
+              });
+            }
           }
         }
-        
-        return movie;
-      });
+
+        // Look for embedded players and iframes
+        const iframePatterns = [
+          /<iframe[^>]*src=[\"']([^\"']+)[\"'][^>]*>/gi,
+          /<embed[^>]*src=[\"']([^\"']+)[\"'][^>]*>/gi
+        ];
+
+        for (const pattern of iframePatterns) {
+          let match;
+          while ((match = pattern.exec(html)) !== null) {
+            let embedUrl = match[1];
+            
+            if (embedUrl.startsWith('//')) {
+              embedUrl = 'https:' + embedUrl;
+            } else if (embedUrl.startsWith('/')) {
+              embedUrl = 'https://www.5movierulz.villas' + embedUrl;
+            }
+            
+            embedUrl = embedUrl.replace(/[\r\n]/g, '').trim();
+            
+            // Check if it's a known streaming service
+            if ((embedUrl.includes('streamlare') || embedUrl.includes('doodstream') || 
+                 embedUrl.includes('mixdrop') || embedUrl.includes('vidcloud')) &&
+                !foundUrls.has(embedUrl)) {
+              
+              foundUrls.add(embedUrl);
+              
+              let service = 'embedded';
+              if (embedUrl.includes('streamlare')) service = 'streamlare';
+              else if (embedUrl.includes('doodstream')) service = 'doodstream';
+              else if (embedUrl.includes('mixdrop')) service = 'mixdrop';
+              else if (embedUrl.includes('vidcloud')) service = 'vidcloud';
+              
+              streamingLinks.push({
+                url: embedUrl,
+                service: service,
+                priority: 2,
+                quality: 'HD',
+                type: 'embedded'
+              });
+            }
+          }
+        }
+
+        // Sort by priority (lower number = higher priority)
+        streamingLinks.sort((a, b) => a.priority - b.priority);
+
+      } catch (error) {
+        console.error('Error extracting streaming links:', error);
+      }
+
+      return streamingLinks;
+    }
+
+    // Function to enhance movies with streaming links
+    async function enhanceMoviesWithStreamingLinks(results) {
+      if (!Array.isArray(results)) return results;
+      
+      const enhancedResults = [];
+      
+      for (const movie of results) {
+        try {
+          // Extract streaming links from the movie page
+          const streamingLinks = movie.movie_page ? 
+            await extractStreamingLinksFromMoviePage(movie.movie_page) : [];
+          
+          // Clean the main URL
+          let mainUrl = movie.url;
+          if (mainUrl && (mainUrl.includes('vcdnlare.com') || mainUrl.includes('streamlare.com'))) {
+            mainUrl = mainUrl.replace(/[\r\n]/g, '').trim();
+            if (!mainUrl.startsWith('http')) {
+              mainUrl = 'https://' + mainUrl;
+            }
+          }
+          
+          enhancedResults.push({
+            ...movie,
+            url: mainUrl,
+            streamingUrls: streamingLinks.length > 0 ? streamingLinks : [{
+              url: mainUrl,
+              service: 'primary',
+              priority: 1,
+              quality: 'HD',
+              type: 'stream'
+            }]
+          });
+          
+        } catch (error) {
+          console.error('Error enhancing movie with streaming links:', error);
+          // Fallback: keep original movie data
+          enhancedResults.push({
+            ...movie,
+            streamingUrls: [{
+              url: movie.url,
+              service: 'primary',
+              priority: 1,
+              quality: 'HD',
+              type: 'stream'
+            }]
+          });
+        }
+      }
+      
+      return enhancedResults;
     }
     
     if (Array.isArray(data)) {
       // If n8n returns an array directly
-      const fixedResults = fixStreamingUrls(data);
+      const enhancedResults = await enhanceMoviesWithStreamingLinks(data);
       formattedResponse = {
         query: query,
-        results: fixedResults,
-        total: fixedResults.length,
-        message: `Found ${fixedResults.length} movies`,
+        results: enhancedResults,
+        total: enhancedResults.length,
+        message: `Found ${enhancedResults.length} movies with streaming links`,
         source: "5movierulz.villas",
         success: true
       };
     } else if (data.results) {
       // If n8n returns an object with results property
-      const fixedResults = fixStreamingUrls(data.results);
+      const enhancedResults = await enhanceMoviesWithStreamingLinks(data.results);
       formattedResponse = {
         ...data,
-        results: fixedResults
+        results: enhancedResults,
+        message: `Found ${enhancedResults.length} movies with streaming links`
       };
     } else {
       // If n8n returns a single object, wrap it in results array
-      const fixedResults = fixStreamingUrls([data]);
+      const enhancedResults = await enhanceMoviesWithStreamingLinks([data]);
       formattedResponse = {
         query: query,
-        results: fixedResults,
+        results: enhancedResults,
         total: 1,
-        message: "Found 1 movie",
+        message: "Found 1 movie with streaming links",
         source: "5movierulz.villas",
         success: true
       };
