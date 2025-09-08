@@ -132,10 +132,20 @@ export default async function handler(req, res) {
         function loadStreamLare() {
             updateDebug('Loading StreamLare...');
             
-            // Set iframe src to the StreamLare URL
-            iframe.src = originalUrl;
+            // IMPORTANT: Start with base URL (no parameters) and let StreamLare's JS add them
+            let baseUrl = originalUrl;
             
-            // Monitor iframe loading
+            // Remove any existing parameters to start fresh
+            if (baseUrl.includes('?')) {
+                baseUrl = baseUrl.split('?')[0];
+            }
+            
+            updateDebug('Starting with base URL...', baseUrl);
+            
+            // Set iframe src to the BASE StreamLare URL (let their JS add parameters)
+            iframe.src = baseUrl;
+            
+            // Monitor iframe loading and URL changes
             iframe.onload = function() {
                 try {
                     // Try to get the current URL from iframe (may be blocked by CORS)
@@ -145,6 +155,29 @@ export default async function handler(req, res) {
                     // Check if URL has been updated with sid and t parameters
                     if (iframeUrl.includes('sid=') && iframeUrl.includes('t=')) {
                         updateDebug('✅ Stream parameters added!', iframeUrl);
+                    } else if (iframeUrl === baseUrl) {
+                        updateDebug('⏳ Waiting for parameter injection...', iframeUrl);
+                        
+                        // Monitor for URL changes (parameter addition)
+                        let checkCount = 0;
+                        const urlChecker = setInterval(() => {
+                            try {
+                                const currentUrl = iframe.contentWindow.location.href;
+                                if (currentUrl !== iframeUrl && (currentUrl.includes('sid=') || currentUrl.includes('t='))) {
+                                    updateDebug('🎉 Parameters injected!', currentUrl);
+                                    clearInterval(urlChecker);
+                                }
+                                checkCount++;
+                                if (checkCount > 20) { // Stop after 10 seconds
+                                    clearInterval(urlChecker);
+                                    updateDebug('⚠️ Parameter injection timeout', 'May still be loading...');
+                                }
+                            } catch (e) {
+                                // CORS blocked - can't monitor URL changes
+                                clearInterval(urlChecker);
+                                updateDebug('🔒 CORS protected', 'Cannot monitor URL changes');
+                            }
+                        }, 500);
                     }
                 } catch (e) {
                     // CORS blocked - assume it loaded successfully
@@ -155,10 +188,10 @@ export default async function handler(req, res) {
                 loading.style.display = 'none';
                 iframe.style.display = 'block';
                 
-                // Hide debug after 5 seconds
+                // Hide debug after 10 seconds (longer to see parameter injection)
                 setTimeout(() => {
                     debug.style.display = 'none';
-                }, 5000);
+                }, 10000);
             };
             
             iframe.onerror = function() {
