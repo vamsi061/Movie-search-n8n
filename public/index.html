@@ -581,15 +581,15 @@
         // Initialize tunnel display on page load
         updateTunnelDisplay();
 
-        // Function to open streaming URLs with localhost simulation for StreamLare
+        // Function to open streaming URLs with direct redirect (like working code)
         function openStreamingUrl(url) {
             console.log('Opening streaming URL:', url);
             
             if (url && url !== '#') {
-                // For StreamLare/VCDNLare links, use localhost simulator to get sid and t parameters
+                // For StreamLare/VCDNLare links, use direct redirect approach
                 if (url.includes('vcdnlare.com') || url.includes('streamlare.com')) {
-                    const simulatorUrl = `/api/localhost-simulator?url=${encodeURIComponent(url)}`;
-                    window.open(simulatorUrl, '_blank', 'width=1200,height=800,scrollbars=yes,resizable=yes');
+                    const redirectUrl = `/api/direct-redirect?url=${encodeURIComponent(url)}`;
+                    window.open(redirectUrl, '_blank');
                 } else {
                     // For other links, open directly
                     window.open(url, '_blank');
