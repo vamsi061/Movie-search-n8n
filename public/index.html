@@ -620,9 +620,9 @@
             try {
                 // Step 1: Try multiple download extraction methods
                 const downloadMethods = [
-                    { name: 'Enhanced Scraper', endpoint: '/api/download-enhanced' },
-                    { name: 'Playwright Scraper', endpoint: '/api/playwright-download' },
-                    { name: 'Basic Scraper', endpoint: '/api/download' }
+                    { name: 'Enhanced Scraper', endpoint: '/api/download-all', method: 'enhanced' },
+                    { name: 'Playwright Scraper', endpoint: '/api/download-all', method: 'playwright' },
+                    { name: 'Basic Scraper', endpoint: '/api/download-all', method: 'basic' }
                 ];
                 
                 let downloadLinks = [];
@@ -631,7 +631,7 @@
                     try {
                         buttonElement.innerHTML = `⏳ Trying ${method.name}...`;
                         
-                        const response = await fetch(`${method.endpoint}?url=${encodeURIComponent(moviePageUrl)}`, {
+                        const response = await fetch(`${method.endpoint}?url=${encodeURIComponent(moviePageUrl)}&method=${method.method || 'basic'}`, {
                             method: 'GET',
                             headers: {
                                 'Accept': 'application/json',

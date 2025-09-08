@@ -1,0 +1,387 @@
+{
+  "meta": {
+    "instanceId": "n8n-instance"
+  },
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "movie-scraper-villas",
+        "options": {}
+      },
+      "id": "webhook-trigger",
+      "name": "Webhook Trigger",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [100, 300],
+      "webhookId": "movie-scraper-villas"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Extract and validate search query\nconst webhookData = $input.first().json;\nlet query = 'rrr'; // default fallback\n\n// Try multiple ways to extract query\nif (webhookData.query && webhookData.query.query) {\n  query = webhookData.query.query;\n} else if (webhookData.body && webhookData.body.query) {\n  query = webhookData.body.query;\n} else if (webhookData.query && typeof webhookData.query === 'string') {\n  query = webhookData.query;\n} else if (webhookData.searchQuery) {\n  query = webhookData.searchQuery;\n}\n\n// Clean and validate query\nquery = query.toString().trim();\nif (!query || query.length < 2) {\n  query = 'rrr';\n}\n\nconsole.log('Extracted search query:', query);\n\nreturn {\n  searchQuery: query,\n  originalData: webhookData,\n  timestamp: new Date().toISOString()\n};"
+      },
+      "id": "prepare-search",
+      "name": "Prepare Search Data",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [300, 300]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "https://api.duckduckgo.com/",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "q",
+              "value": "5movierulz current working domain site:reddit.com OR site:quora.com"
+            },
+            {
+              "name": "format",
+              "value": "json"
+            },
+            {
+              "name": "no_html",
+              "value": "1"
+            },
+            {
+              "name": "skip_disambig",
+              "value": "1"
+            }
+          ]
+        },
+        "options": {
+          "timeout": 15000
+        }
+      },
+      "id": "web-search-domain",
+      "name": "Web Search for Domain",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [500, 200]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://openrouter.ai/api/v1/chat/completions",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "Bearer {{ $env.OPENROUTER_API_KEY }}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "HTTP-Referer",
+              "value": "https://n8n.io"
+            },
+            {
+              "name": "X-Title",
+              "value": "N8N Movie Scraper"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"model\": \"anthropic/claude-3-haiku\",\n  \"messages\": [\n    {\n      \"role\": \"system\",\n      \"content\": \"You are an AI assistant that helps find current working domains for movie websites. Analyze search results and extract the most likely current working domain for 5movierulz. Return ONLY the domain URL in format: https://domain.com - no explanation needed.\"\n    },\n    {\n      \"role\": \"user\",\n      \"content\": \"Based on these search results about 5movierulz current domains, what is the most likely working domain? Search results: {{ $('Web Search for Domain').first().json.AbstractText || 'No results found' }}. If no clear domain found, return: https://5movierulz.villas\"\n    }\n  ],\n  \"max_tokens\": 100,\n  \"temperature\": 0.1\n}",
+        "options": {
+          "timeout": 30000
+        }
+      },
+      "id": "ai-domain-finder",
+      "name": "AI Domain Finder",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [700, 200]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Process AI response and prepare target URL\nconst searchData = $('Prepare Search Data').first().json;\nconst aiResponse = $input.first().json;\n\nlet domain = 'https://5movierulz.villas'; // fallback\n\n// Extract domain from AI response\nif (aiResponse.choices && aiResponse.choices[0] && aiResponse.choices[0].message) {\n  const aiDomain = aiResponse.choices[0].message.content.trim();\n  console.log('AI suggested domain:', aiDomain);\n  \n  // Validate the AI response contains a URL\n  if (aiDomain.startsWith('http') && aiDomain.includes('movierulz')) {\n    domain = aiDomain;\n  }\n}\n\n// Ensure domain doesn't end with slash\nif (domain.endsWith('/')) {\n  domain = domain.slice(0, -1);\n}\n\nconst searchQuery = searchData.searchQuery;\n\n// Try multiple search URL patterns that movierulz sites commonly use\nconst searchPatterns = [\n  `${domain}/?s=${encodeURIComponent(searchQuery)}`,\n  `${domain}/search?q=${encodeURIComponent(searchQuery)}`,\n  `${domain}/search/${encodeURIComponent(searchQuery)}`,\n  `${domain}/?search=${encodeURIComponent(searchQuery)}`,\n  `${domain}/movies?search=${encodeURIComponent(searchQuery)}`\n];\n\n// Use the first pattern as primary\nconst targetUrl = searchPatterns[0];\n\nconsole.log('Final domain:', domain);\nconsole.log('Target URL:', targetUrl);\nconsole.log('Alternative URLs:', searchPatterns.slice(1));\n\nreturn {\n  searchQuery: searchQuery,\n  domain: domain,\n  targetUrl: targetUrl,\n  alternativeUrls: searchPatterns.slice(1),\n  aiResponse: aiResponse,\n  timestamp: new Date().toISOString()\n};"
+      },
+      "id": "process-ai-response",
+      "name": "Process AI Response",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [900, 250]
+    },
+    {
+      "parameters": {
+        "url": "={{ $json.targetUrl }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "User-Agent",
+              "value": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+            },
+            {
+              "name": "Accept",
+              "value": "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8"
+            },
+            {
+              "name": "Accept-Language",
+              "value": "en-US,en;q=0.5"
+            },
+            {
+              "name": "Accept-Encoding",
+              "value": "gzip, deflate, br"
+            },
+            {
+              "name": "DNT",
+              "value": "1"
+            },
+            {
+              "name": "Connection",
+              "value": "keep-alive"
+            },
+            {
+              "name": "Upgrade-Insecure-Requests",
+              "value": "1"
+            },
+            {
+              "name": "Sec-Fetch-Dest",
+              "value": "document"
+            },
+            {
+              "name": "Sec-Fetch-Mode",
+              "value": "navigate"
+            },
+            {
+              "name": "Sec-Fetch-Site",
+              "value": "none"
+            },
+            {
+              "name": "Cache-Control",
+              "value": "max-age=0"
+            }
+          ]
+        },
+        "options": {
+          "timeout": 30000,
+          "redirect": {
+            "redirect": {
+              "followRedirects": true,
+              "maxRedirects": 5
+            }
+          }
+        }
+      },
+      "id": "http-scrape",
+      "name": "HTTP Scrape with Headers",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [1100, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Enhanced movie parsing with AI-discovered domain\nconst scraperData = $input.first().json;\nconst processData = $('Process AI Response').first().json;\nconst searchQuery = processData.searchQuery;\nconst domain = processData.domain;\n\nlet htmlContent = scraperData.html || scraperData.content || scraperData.data || '';\n\nconsole.log('HTML content length:', htmlContent.length);\nconsole.log('Search query for parsing:', searchQuery);\nconsole.log('Using domain:', domain);\n\nconst movies = [];\n\n// Check if we got valid HTML\nif (htmlContent.length < 1000) {\n  console.log('HTML too short, might be blocked or invalid');\n  return {\n    searchQuery: searchQuery,\n    domain: domain,\n    movies: [],\n    error: 'HTML content too short - possible blocking',\n    htmlLength: htmlContent.length\n  };\n}\n\ntry {\n  // Enhanced parsing strategies for movie search results\n  \n  // Strategy 1: Look for movie posts/articles (common in WordPress-based movie sites)\n  const moviePostRegex = /<(?:article|div)[^>]*class=\"[^\"]*(?:post|movie|item|card|entry)[^\"]*\"[^>]*>([\\s\\S]*?)<\\/(?:article|div)>/gi;\n  \n  // Strategy 2: Look for specific movie result containers\n  const movieResultRegex = /<div[^>]*class=\"[^\"]*(?:result|search-result|movie-item)[^\"]*\"[^>]*>([\\s\\S]*?)<\\/div>/gi;\n  \n  // Strategy 3: Look for title links that contain movie years or quality indicators\n  const movieLinkRegex = /<a[^>]*href=\"([^\"]+)\"[^>]*>([^<]*(?:20\\d{2}|HD|CAM|DVDRip|BluRay|WEB-DL)[^<]*)<\\/a>/gi;\n  \n  // Strategy 4: Look for download/watch links with movie titles\n  const escapedQuery = searchQuery.replace(/[.*+?^${}()|[\\]\\\\]/g, '\\\\$&');\n  const downloadLinkRegex = new RegExp(`<a[^>]*href=\"([^\"]+)\"[^>]*>([^<]*(?:download|watch|stream)[^<]*(?:${escapedQuery})[^<]*)<\\/a>`, 'gi');\n  \n  let match;\n  const foundItems = new Set();\n  \n  // Parse movie posts/articles\n  while ((match = moviePostRegex.exec(htmlContent)) !== null) {\n    const postHtml = match[1];\n    \n    // Look for title in h1, h2, h3, or title class\n    const titleMatches = [\n      ...postHtml.matchAll(/<h[1-6][^>]*>([^<]+)<\\/h[1-6]>/gi),\n      ...postHtml.matchAll(/<[^>]*class=\"[^\"]*title[^\"]*\"[^>]*>([^<]+)</gi),\n      ...postHtml.matchAll(/<a[^>]*href=\"([^\"]+)\"[^>]*title=\"([^\"]+)\"/gi)\n    ];\n    \n    for (const titleMatch of titleMatches) {\n      let title = titleMatch[2] || titleMatch[1];\n      let url = titleMatch[1] || '';\n      \n      if (title && title.length > 3) {\n        title = title.trim().replace(/\\s+/g, ' ');\n        \n        // Skip navigation links\n        if (title.toLowerCase().includes('home') || \n            title.toLowerCase().includes('featured') ||\n            title.toLowerCase().includes('category') ||\n            title.toLowerCase().includes('bollywood movie 20')) {\n          continue;\n        }\n        \n        // Look for movie-specific indicators\n        if (title.toLowerCase().includes(searchQuery.toLowerCase()) ||\n            /20\\d{2}/.test(title) || // Contains year\n            /(?:HD|CAM|DVDRip|BluRay|WEB-DL|720p|1080p)/i.test(title)) { // Contains quality\n          \n          if (url && !url.startsWith('http')) {\n            url = url.startsWith('/') ? domain + url : domain + '/' + url;\n          }\n          \n          const movieKey = title.toLowerCase();\n          if (!foundItems.has(movieKey)) {\n            foundItems.add(movieKey);\n            movies.push({\n              title: title,\n              url: url || `${domain}/?s=${encodeURIComponent(title)}`,\n              source: 'post_parsing',\n              searchQuery: searchQuery,\n              domain: domain\n            });\n          }\n        }\n      }\n    }\n  }\n  \n  // Strategy 2: Parse movie result containers\n  while ((match = movieResultRegex.exec(htmlContent)) !== null) {\n    const resultHtml = match[1];\n    \n    const titleRegexPattern = new RegExp(`<(?:h[1-6]|a|span)[^>]*>([^<]+(?:${escapedQuery})[^<]*)`, 'gi');\n    const titleMatch = resultHtml.match(titleRegexPattern);\n    const linkMatch = resultHtml.match(/<a[^>]*href=\"([^\"]+)\"/i);\n    \n    if (titleMatch && linkMatch) {\n      const title = titleMatch[1].trim();\n      let url = linkMatch[1];\n      \n      if (!url.startsWith('http')) {\n        url = url.startsWith('/') ? domain + url : domain + '/' + url;\n      }\n      \n      const movieKey = title.toLowerCase();\n      if (!foundItems.has(movieKey) && title.length > 3) {\n        foundItems.add(movieKey);\n        movies.push({\n          title: title,\n          url: url,\n          source: 'result_parsing',\n          searchQuery: searchQuery,\n          domain: domain\n        });\n      }\n    }\n  }\n  \n  // Strategy 3: Parse movie links with years/quality\n  while ((match = movieLinkRegex.exec(htmlContent)) !== null) {\n    const url = match[1];\n    const title = match[2].trim();\n    \n    // Skip navigation and category links\n    if (title.toLowerCase().includes('featured') ||\n        title.toLowerCase().includes('category') ||\n        url.includes('/category/') ||\n        url.includes('?sort=')) {\n      continue;\n    }\n    \n    let fullUrl = url;\n    if (!url.startsWith('http')) {\n      fullUrl = url.startsWith('/') ? domain + url : domain + '/' + url;\n    }\n    \n    const movieKey = title.toLowerCase();\n    if (!foundItems.has(movieKey) && title.length > 3) {\n      foundItems.add(movieKey);\n      movies.push({\n        title: title,\n        url: fullUrl,\n        source: 'quality_link_parsing',\n        searchQuery: searchQuery,\n        domain: domain\n      });\n    }\n  }\n  \n  console.log(`Found ${movies.length} movies using enhanced parsing`);\n  \n} catch (error) {\n  console.error('Parsing error:', error.message);\n  return {\n    searchQuery: searchQuery,\n    domain: domain,\n    movies: [],\n    error: 'Parsing failed: ' + error.message,\n    htmlLength: htmlContent.length\n  };\n}\n\n// Return results\nif (movies.length === 0) {\n  // Return a sample result if no movies found\n  movies.push({\n    title: `${searchQuery} - No results found`,\n    url: `${domain}/?s=${encodeURIComponent(searchQuery)}`,\n    source: 'fallback',\n    searchQuery: searchQuery,\n    domain: domain,\n    note: 'No movies found - this is a fallback result'\n  });\n}\n\nreturn movies;"
+      },
+      "id": "parse-movies",
+      "name": "Parse Movie Results",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1300, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": false
+          },
+          "conditions": [
+            {
+              "id": "1",
+              "leftValue": "={{ $json.title }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "notEmpty"
+              }
+            },
+            {
+              "id": "2",
+              "leftValue": "={{ $json.url }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "notEmpty"
+              }
+            }
+          ]
+        }
+      },
+      "id": "filter-valid",
+      "name": "Filter Valid Movies",
+      "type": "n8n-nodes-base.filter",
+      "typeVersion": 2,
+      "position": [1500, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Aggregate all movies and format final response with AI insights\nconst movies = $input.all();\nconst processData = $('Process AI Response').first().json;\nconst searchQuery = processData.searchQuery;\nconst domain = processData.domain;\n\n// Remove duplicates based on title\nconst uniqueMovies = [];\nconst seenTitles = new Set();\n\nfor (const movie of movies) {\n  const title = movie.json.title.toLowerCase().trim();\n  if (!seenTitles.has(title)) {\n    seenTitles.add(title);\n    uniqueMovies.push(movie.json);\n  }\n}\n\n// Sort by relevance (title similarity to search query)\nfunction calculateRelevance(title, query) {\n  const titleLower = title.toLowerCase();\n  const queryLower = query.toLowerCase();\n  \n  if (titleLower.includes(queryLower)) return 100;\n  \n  const words = queryLower.split(' ');\n  let score = 0;\n  for (const word of words) {\n    if (titleLower.includes(word)) score += 20;\n  }\n  \n  return score;\n}\n\nuniqueMovies.sort((a, b) => {\n  const scoreA = calculateRelevance(a.title, searchQuery);\n  const scoreB = calculateRelevance(b.title, searchQuery);\n  return scoreB - scoreA;\n});\n\n// Limit results\nconst limitedMovies = uniqueMovies.slice(0, 20);\n\nconst result = {\n  searchQuery: searchQuery,\n  domain: domain,\n  totalResults: limitedMovies.length,\n  movies: limitedMovies,\n  metadata: {\n    aiEnhanced: true,\n    domainDiscovery: 'AI-powered web search',\n    timestamp: new Date().toISOString(),\n    source: 'n8n-ai-enhanced-scraper'\n  }\n};\n\nconsole.log(`Final results: ${limitedMovies.length} movies for query \"${searchQuery}\" from domain ${domain}`);\n\nreturn result;"
+      },
+      "id": "format-results",
+      "name": "Format Final Results",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1700, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://movie-search-app-5d0y.onrender.com/api/append-results",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ $json }}",
+        "options": {
+          "headers": {
+            "Content-Type": "application/json",
+            "User-Agent": "n8n-ai-movie-scraper/1.0"
+          },
+          "timeout": 30000
+        }
+      },
+      "id": "send-to-app",
+      "name": "Send to Your App",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [1900, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Return enhanced success response for webhook\nconst inputData = $input.first().json;\n\nreturn {\n  success: true,\n  message: 'AI-enhanced movie scraping completed successfully',\n  searchQuery: inputData.searchQuery || 'unknown',\n  domain: inputData.domain || 'unknown',\n  totalResults: inputData.totalResults || 0,\n  aiEnhanced: true,\n  timestamp: new Date().toISOString(),\n  webhookResponse: {\n    status: 'completed',\n    data: inputData,\n    features: [\n      'AI-powered domain discovery',\n      'Web search integration',\n      'Enhanced movie parsing',\n      'OpenRouter API integration'\n    ]\n  }\n};"
+      },
+      "id": "webhook-response",
+      "name": "Webhook Response",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [2100, 300]
+    }
+  ],
+  "connections": {
+    "Webhook Trigger": {
+      "main": [
+        [
+          {
+            "node": "Prepare Search Data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Search Data": {
+      "main": [
+        [
+          {
+            "node": "Web Search for Domain",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Web Search for Domain": {
+      "main": [
+        [
+          {
+            "node": "AI Domain Finder",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Domain Finder": {
+      "main": [
+        [
+          {
+            "node": "Process AI Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Process AI Response": {
+      "main": [
+        [
+          {
+            "node": "HTTP Scrape with Headers",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP Scrape with Headers": {
+      "main": [
+        [
+          {
+            "node": "Parse Movie Results",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Movie Results": {
+      "main": [
+        [
+          {
+            "node": "Filter Valid Movies",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Filter Valid Movies": {
+      "main": [
+        [
+          {
+            "node": "Format Final Results",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format Final Results": {
+      "main": [
+        [
+          {
+            "node": "Send to Your App",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send to Your App": {
+      "main": [
+        [
+          {
+            "node": "Webhook Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "staticData": null,
+  "tags": ["movie-scraper", "5movierulz", "ai-enhanced", "openrouter", "web-search"],
+  "triggerCount": 0,
+  "updatedAt": "2024-01-01T00:00:00.000Z",
+  "versionId": "3"
+}
