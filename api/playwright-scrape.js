@@ -281,21 +281,39 @@ async function extractStreamingUrlsFromPage(moviePageUrl) {
       }
     }
     
-    // Convert to structured format
+    // Convert to structured format with proper service detection
     for (const url of foundUrls) {
       const urlLower = url.toLowerCase();
       
       let service = 'generic';
-      let priority = 2;
+      let priority = 3;
+      let type = 'streaming';
       
-      if (urlLower.includes('streamlare') || urlLower.includes('vcdnlare')) {
-        service = 'streamlare';
+      // Prioritize working alternatives
+      if (urlLower.includes('uperbox.io')) {
+        service = 'uperbox';
         priority = 1;
+      } else if (urlLower.includes('waaw') || urlLower.includes('netutv')) {
+        service = 'netutv';
+        priority = 1;
+      } else if (url.startsWith('magnet:')) {
+        service = 'torrent';
+        type = 'download';
+        priority = 2;
+      } else if (urlLower.includes('streamlare') || urlLower.includes('vcdnlare')) {
+        service = 'streamlare';
+        priority = 3; // Lower priority due to domain restrictions
+      } else if (urlLower.includes('doodstream')) {
+        service = 'doodstream';
+        priority = 2;
+      } else if (urlLower.includes('mixdrop')) {
+        service = 'mixdrop';
+        priority = 2;
       }
       
       streamingUrls.push({
         url: url,
-        type: 'streaming',
+        type: type,
         service: service,
         quality: 'HD',
         priority: priority

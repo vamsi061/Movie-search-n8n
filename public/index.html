@@ -480,8 +480,50 @@
                         ${movie.source ? `<span class="movie-year">${movie.source}</span>` : ''}
                         ${movie.year && movie.year !== 'N/A' ? `<span class="movie-year">${movie.year}</span>` : ''}
                     </div>
-                    <div class="movie-sources">
-                        <span class="source-tag">${movie.source || '5movierulz'}</span>
+                    <div class="streaming-links">
+                        <div class="streaming-title">🎬 Watch Online:</div>
+                        ${movie.streamingUrls && movie.streamingUrls.length > 0 
+                            ? movie.streamingUrls.map((stream, index) => {
+                                const cleanUrl = stream.url.toString().replace(/\s+/g, '').replace(/\n/g, '').replace(/\r/g, '').trim();
+                                
+                                let serviceName = '📺 Stream';
+                                let serviceClass = 'priority-' + stream.priority;
+                                
+                                switch(stream.service) {
+                                    case 'uperbox':
+                                        serviceName = '🎬 Uperbox';
+                                        serviceClass = 'priority-1';
+                                        break;
+                                    case 'netutv':
+                                        serviceName = '📺 NetuTV';
+                                        serviceClass = 'priority-1';
+                                        break;
+                                    case 'torrent':
+                                        serviceName = '🧲 Torrent';
+                                        serviceClass = 'priority-2';
+                                        break;
+                                    case 'streamlare':
+                                        serviceName = '🎬 StreamLare';
+                                        serviceClass = 'priority-3';
+                                        break;
+                                    case 'doodstream':
+                                        serviceName = '📺 DoodStream';
+                                        serviceClass = 'priority-2';
+                                        break;
+                                    case 'mixdrop':
+                                        serviceName = '📺 MixDrop';
+                                        serviceClass = 'priority-2';
+                                        break;
+                                    default:
+                                        serviceName = '📺 Stream';
+                                }
+                                
+                                return `<a href="javascript:void(0)" onclick="openStreamingUrl('${cleanUrl}')" class="stream-link ${serviceClass}" style="margin: 5px 5px 5px 0; display: inline-block;">
+                                    ${serviceName} (${stream.quality})
+                                </a>`;
+                              }).join('')
+                            : '<span style="color: #999; font-size: 0.85rem;">No streaming links available</span>'
+                        }
                     </div>
                 </div>
             `;
