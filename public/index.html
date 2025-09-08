@@ -583,14 +583,8 @@
                 // Clean URL first - remove all whitespace and control characters
                 const cleanUrl = url.toString().replace(/[\r\n\t\s]/g, '').trim();
                 
-                // For StreamLare URLs (vcdnlare.com domain), serve directly from our server
-                if (cleanUrl.includes('vcdnlare.com')) {
-                    const directUrl = `/api/stream-direct?url=${encodeURIComponent(cleanUrl)}`;
-                    window.open(directUrl, '_blank');
-                } else {
-                    // Open other streaming URLs directly
-                    window.open(cleanUrl, '_blank');
-                }
+                // Open all streaming URLs directly - no modifications
+                window.open(cleanUrl, '_blank');
             }
         }
         
