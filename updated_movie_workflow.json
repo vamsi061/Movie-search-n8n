@@ -39,17 +39,11 @@
     },
     {
       "parameters": {
+        "method": "POST",
         "url": "https://movie-search-n8n.vercel.app/api/playwright-scrape",
         "sendBody": true,
         "contentType": "json",
-        "jsonParameters": {
-          "parameters": [
-            {
-              "name": "query",
-              "value": "={{ $node['Extract Parameters'].json.query }}"
-            }
-          ]
-        },
+        "body": "={{ JSON.stringify({\"query\": $node['Extract Parameters'].json.query}) }}",
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
