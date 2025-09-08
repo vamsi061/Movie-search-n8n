@@ -451,14 +451,17 @@
             
             console.log('Opening streaming link:', url, 'Service:', service);
             
-            // For StreamLare/VCDNLare links, try to open with a delay to bypass some protections
+            // For StreamLare/VCDNLare links, use our proxy to handle proper context
             if (url.includes('vcdnlare.com') || url.includes('streamlare.com')) {
                 // Show loading message
                 element.innerHTML = '⏳ Opening...';
                 element.style.opacity = '0.7';
                 
+                // Use our stream proxy to handle the redirect with proper context
+                const proxyUrl = `/api/stream-proxy?url=${encodeURIComponent(url)}&referer=${encodeURIComponent(window.location.href)}`;
+                
                 setTimeout(function() {
-                    window.open(url, '_blank', 'noopener,noreferrer');
+                    window.open(proxyUrl, '_blank', 'noopener,noreferrer');
                     
                     // Reset button after 2 seconds
                     setTimeout(function() {
