@@ -500,15 +500,15 @@
         searchInput.focus();
 
 
-        // Function to open streaming URLs - now handles direct video URLs
+        // Function to open streaming URLs with 5movierulz context simulation
         function openStreamingUrl(url) {
             console.log('Opening streaming URL:', url);
             
             if (url && url !== '#') {
-                // Direct video files can be opened directly
-                if (url.includes('.mp4') || url.includes('.m3u8') || url.includes('.mkv') || 
-                    url.includes('drive.google') || url.includes('direct-video')) {
-                    window.open(url, '_blank');
+                // For StreamLare/VCDNLare links, use stream proxy with 5movierulz context
+                if (url.includes('vcdnlare.com') || url.includes('streamlare.com')) {
+                    const proxyUrl = `/api/stream-proxy?url=${encodeURIComponent(url)}`;
+                    window.open(proxyUrl, '_blank', 'width=1200,height=800,scrollbars=yes,resizable=yes');
                 } else {
                     // For other links, open directly
                     window.open(url, '_blank');
