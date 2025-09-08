@@ -432,7 +432,15 @@
         function displayResults(movies, total, query) {
             statsContainer.innerHTML = `Found ${total} movies for "${query}"`;
             statsContainer.style.display = 'block';
-            resultsContainer.innerHTML = movies.map(movie => createMovieCard(movie)).join('');
+            
+            // Clear results container
+            resultsContainer.innerHTML = '';
+            
+            // Display movies by appending DOM elements
+            movies.forEach(movie => {
+                const movieCard = createMovieCard(movie);
+                resultsContainer.appendChild(movieCard);
+            });
         }
 
         function createMovieCard(movie) {
