@@ -468,14 +468,10 @@
                 // Clean URL first - remove all whitespace and control characters
                 const cleanUrl = url.toString().replace(/[\r\n\t\s]/g, '').trim();
                 
-                // For StreamLare URLs (vcdnlare.com domain), show instructions since they have strict domain restrictions
+                // For StreamLare URLs (vcdnlare.com domain), use bridge page that mimics main website
                 if (cleanUrl.includes('vcdnlare.com')) {
-                    // Show alert with copy option for StreamLare
-                    if (confirm('StreamLare has domain restrictions. Click OK to copy URL to clipboard, then paste in new tab for best results.')) {
-                        copyToClipboard(cleanUrl);
-                    }
-                    // Also try direct open
-                    window.open(cleanUrl, '_blank');
+                    const bridgeUrl = `/api/stream-bridge?url=${encodeURIComponent(cleanUrl)}`;
+                    window.open(bridgeUrl, '_blank');
                 } else {
                     // Open other streaming URLs directly
                     window.open(cleanUrl, '_blank');
