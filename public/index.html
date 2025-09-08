@@ -373,8 +373,8 @@
     </div>
 
     <script>
-        // API URL - Use N8N webhook
-        const API_URL = 'https://n8n-instance-vnyx.onrender.com/webhook/movie-scraper-villas';
+        // API URL - Use N8N proxy to avoid CORS
+        const API_URL = '/api/n8n-proxy';
         
         const searchForm = document.getElementById('searchForm');
         const searchInput = document.getElementById('searchInput');
