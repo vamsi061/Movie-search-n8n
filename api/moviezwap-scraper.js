@@ -29,81 +29,43 @@ export default async function handler(req, res) {
   try {
     console.log('Scraping moviezwap.care for:', query);
     
-    // Multiple user agents for rotation
-    const userAgents = [
-      'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-      'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-      'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-      'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:121.0) Gecko/20100101 Firefox/121.0'
-    ];
-
-    const randomUserAgent = userAgents[Math.floor(Math.random() * userAgents.length)];
-    
-    // Enhanced headers to mimic real browser and bypass 403
-    const headers = {
-      'User-Agent': randomUserAgent,
-      'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8',
-      'Accept-Language': 'en-US,en;q=0.9,hi;q=0.8',
-      'Accept-Encoding': 'gzip, deflate, br',
-      'Cache-Control': 'no-cache',
-      'Pragma': 'no-cache',
-      'Sec-Ch-Ua': '"Not_A Brand";v="8", "Chromium";v="120", "Google Chrome";v="120"',
-      'Sec-Ch-Ua-Mobile': '?0',
-      'Sec-Ch-Ua-Platform': '"Windows"',
-      'Sec-Fetch-Dest': 'document',
-      'Sec-Fetch-Mode': 'navigate',
-      'Sec-Fetch-Site': 'same-origin',
-      'Sec-Fetch-User': '?1',
-      'Upgrade-Insecure-Requests': '1',
-      'Referer': 'https://www.moviezwap.care/',
-      'Origin': 'https://www.moviezwap.care'
-    };
-
-    // Add random delay to avoid rate limiting
-    await new Promise(resolve => setTimeout(resolve, Math.random() * 2000 + 1000));
-
+    // Simplified approach to avoid potential issues
     const searchUrl = `https://www.moviezwap.care/search.php?q=${encodeURIComponent(query)}`;
     console.log('Fetching:', searchUrl);
 
-    // Try multiple approaches to bypass 403
-    let response;
-    const fetchOptions = {
+    // Simple headers to avoid detection issues
+    const headers = {
+      'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+      'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+      'Accept-Language': 'en-US,en;q=0.5',
+      'Referer': 'https://www.moviezwap.care/'
+    };
+
+    // Add small delay
+    await new Promise(resolve => setTimeout(resolve, 1000));
+
+    const response = await fetch(searchUrl, {
       method: 'GET',
       headers: headers,
       redirect: 'follow'
-    };
-
-    try {
-      response = await fetch(searchUrl, fetchOptions);
-    } catch (error) {
-      // Fallback: try with different headers
-      console.log('First attempt failed, trying fallback...');
-      const fallbackHeaders = {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
-        'Accept': '*/*',
-        'Accept-Language': 'en-US,en;q=0.5',
-        'Accept-Encoding': 'identity',
-        'Connection': 'keep-alive',
-        'Referer': 'https://www.moviezwap.care/'
-      };
-      
-      response = await fetch(searchUrl, {
-        method: 'GET',
-        headers: fallbackHeaders,
-        redirect: 'follow'
-      });
-    }
+    });
 
     if (!response.ok) {
       console.log('Response not OK:', response.status, response.statusText);
-      throw new Error(`HTTP error! status: ${response.status}`);
+      // Return empty results instead of throwing error
+      return res.status(200).json({
+        success: false,
+        source: 'moviezwap.care',
+        query: query,
+        results: [],
+        total: 0,
+        message: `MoviezWap returned ${response.status}. Continuing with other sources.`,
+        error: `HTTP ${response.status}`
+      });
     }
 
     const html = await response.text();
     console.log('HTML fetched, length:', html.length);
-
-    // Log first 500 characters for debugging
-    console.log('HTML preview:', html.substring(0, 500));
 
     // Extract movie data from HTML
     const movies = extractMovieData(html);
@@ -121,11 +83,14 @@ export default async function handler(req, res) {
 
   } catch (error) {
     console.error('Moviezwap scraping error:', error);
-    res.status(500).json({ 
+    // Return empty results instead of 500 error to not break the UI
+    res.status(200).json({ 
       success: false,
       error: 'Failed to scrape moviezwap.care',
       message: error.message,
-      source: 'moviezwap.care'
+      source: 'moviezwap.care',
+      results: [],
+      total: 0
     });
   }
 }
@@ -136,53 +101,24 @@ function extractMovieData(html) {
   try {
     console.log('Starting movie extraction...');
     
+    if (!html || html.length < 100) {
+      console.log('HTML too short or empty');
+      return [];
+    }
+    
     // Based on the HTML structure we saw: <div class='mylist'><img src='/images/arrow.gif' border='0'><a href='/movie/...'>Title</a></div>
     const moviePattern = /<div class='mylist'>\s*<img[^>]*>\s*<a href='([^']+)'>([^<]+)<\/a>\s*<\/div>/gi;
     let match;
     const foundMovies = new Set();
     
-    while ((match = moviePattern.exec(html)) !== null) {
-      const url = match[1];
-      const title = match[2].trim();
-      
-      console.log('Found movie:', title, 'URL:', url);
-      
-      if (title && title.length > 3) {
-        const movieKey = title.toLowerCase().replace(/[^a-z0-9]/g, '');
-        if (!foundMovies.has(movieKey)) {
-          foundMovies.add(movieKey);
-          movies.push({
-            title: cleanTitle(title),
-            url: resolveUrl(url, 'https://www.moviezwap.care'),
-            source: 'moviezwap.care',
-            year: extractYear(title),
-            quality: extractQuality(title),
-            language: extractLanguage(title),
-            genre: 'Unknown',
-            poster: generatePlaceholderPoster(title),
-            streamingUrls: []
-          });
-        }
-      }
-    }
-
-    // Fallback: if no movies found, try simpler pattern
-    if (movies.length === 0) {
-      console.log('No movies found with primary pattern, trying fallback...');
-      const fallbackPattern = /<a href='([^']+\.html)'>([^<]+)<\/a>/gi;
-      let fallbackMatch;
-      
-      while ((fallbackMatch = fallbackPattern.exec(html)) !== null) {
-        const url = fallbackMatch[1];
-        const title = fallbackMatch[2].trim();
+    while ((match = moviePattern.exec(html)) !== null && movies.length < 15) {
+      try {
+        const url = match[1];
+        const title = match[2].trim();
         
-        // Filter for movie-like content
-        if (title.length > 5 && 
-            !title.toLowerCase().includes('home') &&
-            !title.toLowerCase().includes('search') &&
-            !title.toLowerCase().includes('category') &&
-            url.includes('movie')) {
-          
+        console.log('Found movie:', title, 'URL:', url);
+        
+        if (title && title.length > 3) {
           const movieKey = title.toLowerCase().replace(/[^a-z0-9]/g, '');
           if (!foundMovies.has(movieKey)) {
             foundMovies.add(movieKey);
@@ -199,11 +135,14 @@ function extractMovieData(html) {
             });
           }
         }
+      } catch (movieError) {
+        console.error('Error processing movie:', movieError);
+        continue;
       }
     }
 
     console.log('Total movies extracted:', movies.length);
-    return movies.slice(0, 15); // Limit results
+    return movies;
 
   } catch (error) {
     console.error('Error extracting movie data:', error);
