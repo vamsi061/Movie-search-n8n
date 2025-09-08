@@ -547,7 +547,7 @@
                                         serviceName = '📺 Stream';
                                 }
                                 
-                                return `<a href="javascript:void(0)" onclick="event.stopPropagation(); openStreamingUrl('${cleanUrl}')" class="stream-link ${serviceClass}" style="margin: 5px 5px 5px 0; display: inline-block;">
+                                return `<a href="${cleanUrl}" target="_blank" onclick="event.stopPropagation()" class="stream-link ${serviceClass}" style="margin: 5px 5px 5px 0; display: inline-block;">
                                     ${serviceName} (${stream.quality})
                                 </a>`;
                               }).join('')
@@ -575,24 +575,7 @@
         searchInput.focus();
 
 
-        // Function to open streaming URLs
-        function openStreamingUrl(url) {
-            console.log('Opening streaming URL:', url);
-            
-            if (url && url !== '#') {
-                // Clean URL first - remove all whitespace and control characters
-                const cleanUrl = url.toString().replace(/[\r\n\t\s]/g, '').trim();
-                
-                // For StreamLare URLs, use direct server response (like localhost/main site)
-                if (cleanUrl.includes('vcdnlare.com')) {
-                    // Use server to fetch and serve content directly
-                    window.open(`/api/stream-direct?url=${encodeURIComponent(cleanUrl)}`, '_blank');
-                } else {
-                    // Open other streaming URLs directly
-                    window.open(cleanUrl, '_blank');
-                }
-            }
-        }
+        // Removed openStreamingUrl function - using direct href links now
         
         // Show instructions for StreamLare access
         function showStreamLareInstructions(streamUrl) {

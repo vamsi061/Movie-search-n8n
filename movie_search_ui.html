@@ -426,7 +426,7 @@
             const streamingLinks = movie.streamingUrls && movie.streamingUrls.length > 0 
                 ? movie.streamingUrls.map(stream => {
                     const cleanUrl = stream.url.toString().replace(/[\r\n\t\s]/g, '').trim();
-                    return `<a href="javascript:void(0)" onclick="event.stopPropagation(); openStreamingUrl('${cleanUrl}')" class="stream-link priority-${stream.priority}">
+                    return `<a href="${cleanUrl}" target="_blank" onclick="event.stopPropagation()" class="stream-link priority-${stream.priority}">
                         ${stream.service === 'streamlare' ? '🎬 StreamLare' : '📺 Stream'} (${stream.quality})
                     </a>`;
                   }).join('')
@@ -460,24 +460,7 @@
         // Auto-focus search input
         searchInput.focus();
 
-        // Function to open streaming URLs
-        function openStreamingUrl(url) {
-            console.log('Opening streaming URL:', url);
-            
-            if (url && url !== '#') {
-                // Clean URL first - remove all whitespace and control characters
-                const cleanUrl = url.toString().replace(/[\r\n\t\s]/g, '').trim();
-                
-                // For StreamLare URLs, use direct server response (like localhost/main site)
-                if (cleanUrl.includes('vcdnlare.com')) {
-                    // Use server to fetch and serve content directly
-                    window.open(`/api/stream-direct?url=${encodeURIComponent(cleanUrl)}`, '_blank');
-                } else {
-                    // Open other streaming URLs directly
-                    window.open(cleanUrl, '_blank');
-                }
-            }
-        }
+        // Removed openStreamingUrl function - using direct href links now
         
         // Copy URL to clipboard
         function copyToClipboard(text) {
