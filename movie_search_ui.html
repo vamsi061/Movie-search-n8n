@@ -362,17 +362,53 @@
             hideResults();
 
             try {
-                const response = await fetch(`${API_URL}?query=${encodeURIComponent(query)}`);
-                
-                if (!response.ok) {
-                    throw new Error(`HTTP error! status: ${response.status}`);
-                }
+                // Search from multiple sources simultaneously
+                const searchPromises = [
+                    // N8N workflow search
+                    fetch(`${API_URL}?query=${encodeURIComponent(query)}`)
+                        .then(res => res.json())
+                        .catch(err => ({ error: err.message, source: 'n8n' })),
+                    
+                    // MoviezWap search
+                    fetch(`/api/moviezwap-scraper?q=${encodeURIComponent(query)}`)
+                        .then(res => res.json())
+                        .catch(err => ({ error: err.message, source: 'moviezwap' }))
+                ];
 
-                const data = await response.json();
+                const results = await Promise.allSettled(searchPromises);
                 hideLoading();
 
-                if (data.results && data.results.length > 0) {
-                    displayResults(data.results, data.total, query);
+                // Process results from both sources
+                let allMovies = [];
+                let totalCount = 0;
+                let sources = [];
+
+                // Process N8N workflow results
+                if (results[0].status === 'fulfilled' && results[0].value.results) {
+                    const n8nData = results[0].value;
+                    if (n8nData.results && n8nData.results.length > 0) {
+                        const moviesWithSource = n8nData.results.map(movie => ({
+                            ...movie,
+                            source: movie.source || '5movierulz.villas'
+                        }));
+                        allMovies.push(...moviesWithSource);
+                        totalCount += n8nData.results.length;
+                        sources.push(`5MovieRulz (${n8nData.results.length})`);
+                    }
+                }
+
+                // Process MoviezWap results
+                if (results[1].status === 'fulfilled' && results[1].value.results) {
+                    const moviezWapData = results[1].value;
+                    if (moviezWapData.results && moviezWapData.results.length > 0) {
+                        allMovies.push(...moviezWapData.results);
+                        totalCount += moviezWapData.results.length;
+                        sources.push(`MoviezWap (${moviezWapData.results.length})`);
+                    }
+                }
+
+                if (allMovies.length > 0) {
+                    displayResults(allMovies, totalCount, query, sources);
                 } else {
                     showNoResults();
                 }
@@ -415,8 +451,9 @@
             noResultsContainer.style.display = 'block';
         }
 
-        function displayResults(movies, total, query) {
-            statsContainer.innerHTML = `Found ${total} movies for "${query}"`;
+        function displayResults(movies, total, query, sources = []) {
+            const sourceInfo = sources.length > 0 ? ` from ${sources.join(' + ')}` : '';
+            statsContainer.innerHTML = `Found ${total} movies for "${query}"${sourceInfo}`;
             statsContainer.style.display = 'block';
             resultsContainer.innerHTML = movies.map(movie => createMovieCard(movie)).join('');
         }
@@ -439,9 +476,10 @@
                     <div class="movie-info">
                         <h3 class="movie-title">${movie.title}</h3>
                         <div class="movie-meta">
-                            ${movie.year !== 'N/A' ? `<span class="meta-tag year">${movie.year}</span>` : ''}
-                            ${movie.quality !== 'Unknown' ? `<span class="meta-tag quality">${movie.quality}</span>` : ''}
-                            ${movie.language !== 'Unknown' ? `<span class="meta-tag language">${movie.language}</span>` : ''}
+                            ${movie.source ? `<span class="meta-tag" style="background: ${movie.source === '5movierulz.villas' ? '#e3f2fd' : '#f3e5f5'}; color: ${movie.source === '5movierulz.villas' ? '#1976d2' : '#7b1fa2'};">${movie.source === '5movierulz.villas' ? '5MovieRulz' : 'MoviezWap'}</span>` : ''}
+                            ${movie.year && movie.year !== 'N/A' && movie.year !== 'Unknown' ? `<span class="meta-tag year">${movie.year}</span>` : ''}
+                            ${movie.quality && movie.quality !== 'Unknown' ? `<span class="meta-tag quality">${movie.quality}</span>` : ''}
+                            ${movie.language && movie.language !== 'Unknown' ? `<span class="meta-tag language">${movie.language}</span>` : ''}
                         </div>
                         <div class="streaming-links">
                             <div class="streaming-title">🎬 Watch Online:</div>

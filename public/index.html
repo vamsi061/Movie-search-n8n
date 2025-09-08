@@ -401,35 +401,93 @@
             hideResults();
 
             try {
-                const response = await fetch(API_URL, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify({
-                        query: query
-                    })
-                });
-                
-                if (!response.ok) {
-                    throw new Error(`HTTP error! status: ${response.status}`);
-                }
+                // Search from multiple sources simultaneously
+                const searchPromises = [
+                    // 5MovieRulz search
+                    fetch(API_URL, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify({
+                            query: query
+                        })
+                    }).then(res => res.json()).catch(err => ({ error: err.message, source: '5movierulz' })),
+                    
+                    // MoviezWap search
+                    fetch(`/api/moviezwap-scraper?q=${encodeURIComponent(query)}`, {
+                        method: 'GET',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        }
+                    }).then(res => res.json()).catch(err => ({ error: err.message, source: 'moviezwap' }))
+                ];
 
-                const data = await response.json();
+                const results = await Promise.allSettled(searchPromises);
                 hideLoading();
 
-                // Debug logging
-                console.log('API Response:', data);
-                console.log('Results array:', data.results);
-                console.log('Results length:', data.results ? data.results.length : 'undefined');
+                // Process results from both sources
+                let allMovies = [];
+                let totalCount = 0;
+                let sources = [];
 
-                if (data.results && data.results.length > 0) {
-                    displayResults(data.results, data.total || data.results.length, query);
-                } else if (data.error) {
-                    showError(data.error + (data.message ? ': ' + data.message : ''));
+                // Process 5MovieRulz results
+                if (results[0].status === 'fulfilled' && results[0].value.results) {
+                    const movieRulzData = results[0].value;
+                    if (movieRulzData.results && movieRulzData.results.length > 0) {
+                        // Add source identifier to each movie
+                        const moviesWithSource = movieRulzData.results.map(movie => ({
+                            ...movie,
+                            source: movie.source || '5movierulz.villas'
+                        }));
+                        allMovies.push(...moviesWithSource);
+                        totalCount += movieRulzData.results.length;
+                        sources.push(`5MovieRulz (${movieRulzData.results.length})`);
+                    }
+                }
+
+                // Process MoviezWap results
+                if (results[1].status === 'fulfilled' && results[1].value.results) {
+                    const moviezWapData = results[1].value;
+                    if (moviezWapData.results && moviezWapData.results.length > 0) {
+                        allMovies.push(...moviezWapData.results);
+                        totalCount += moviezWapData.results.length;
+                        sources.push(`MoviezWap (${moviezWapData.results.length})`);
+                    }
+                }
+
+                // Debug logging
+                console.log('Combined results:', allMovies);
+                console.log('Total movies found:', totalCount);
+                console.log('Sources:', sources);
+
+                if (allMovies.length > 0) {
+                    // Sort movies by source and quality
+                    allMovies.sort((a, b) => {
+                        // Prioritize 5MovieRulz results
+                        if (a.source !== b.source) {
+                            if (a.source === '5movierulz.villas') return -1;
+                            if (b.source === '5movierulz.villas') return 1;
+                        }
+                        return 0;
+                    });
+
+                    displayResults(allMovies, totalCount, query, sources);
                 } else {
-                    console.log('No results found. Data structure:', data);
-                    showNoResults();
+                    // Check for errors
+                    const errors = [];
+                    if (results[0].status === 'fulfilled' && results[0].value.error) {
+                        errors.push(`5MovieRulz: ${results[0].value.error}`);
+                    }
+                    if (results[1].status === 'fulfilled' && results[1].value.error) {
+                        errors.push(`MoviezWap: ${results[1].value.error}`);
+                    }
+
+                    if (errors.length > 0) {
+                        showError(`Search failed: ${errors.join(', ')}`);
+                    } else {
+                        showNoResults();
+                    }
                 }
 
             } catch (error) {
@@ -470,8 +528,9 @@
             noResultsContainer.style.display = 'block';
         }
 
-        function displayResults(movies, total, query) {
-            statsContainer.innerHTML = `Found ${total} movies for "${query}"`;
+        function displayResults(movies, total, query, sources = []) {
+            const sourceInfo = sources.length > 0 ? ` from ${sources.join(' + ')}` : '';
+            statsContainer.innerHTML = `Found ${total} movies for "${query}"${sourceInfo}`;
             statsContainer.style.display = 'block';
             
             // Clear results container
@@ -507,8 +566,10 @@
                 <div class="movie-info">
                     <h3 class="movie-title">${cleanTitle}</h3>
                     <div class="movie-meta">
-                        ${movie.source ? `<span class="movie-year">${movie.source}</span>` : ''}
-                        ${movie.year && movie.year !== 'N/A' ? `<span class="movie-year">${movie.year}</span>` : ''}
+                        ${movie.source ? `<span class="meta-tag" style="background: ${movie.source === '5movierulz.villas' ? '#e3f2fd' : '#f3e5f5'}; color: ${movie.source === '5movierulz.villas' ? '#1976d2' : '#7b1fa2'};">${movie.source === '5movierulz.villas' ? '5MovieRulz' : 'MoviezWap'}</span>` : ''}
+                        ${movie.year && movie.year !== 'N/A' && movie.year !== 'Unknown' ? `<span class="meta-tag year">${movie.year}</span>` : ''}
+                        ${movie.quality && movie.quality !== 'Unknown' ? `<span class="meta-tag quality">${movie.quality}</span>` : ''}
+                        ${movie.language && movie.language !== 'Unknown' ? `<span class="meta-tag language">${movie.language}</span>` : ''}
                     </div>
                     <div class="streaming-links">
                         <div class="streaming-title">🎬 Watch Online:</div>
