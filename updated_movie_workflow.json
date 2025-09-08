@@ -1,0 +1,136 @@
+{
+  "name": "Movie Search with Playwright Simulation",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "GET",
+        "path": "search-movies",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "webhook-start",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [240, 300],
+      "webhookId": "movie-scraper-villas"
+    },
+    {
+      "parameters": {
+        "values": {
+          "string": [
+            {
+              "name": "query",
+              "value": "={{ $node.Webhook.json.query || 'rrr' }}"
+            },
+            {
+              "name": "max_results",
+              "value": "={{ $node.Webhook.json.max_results || 20 }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "extract-params",
+      "name": "Extract Parameters",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 1,
+      "position": [460, 300]
+    },
+    {
+      "parameters": {
+        "url": "https://movie-search-n8n.vercel.app/api/playwright-scrape",
+        "sendBody": true,
+        "contentType": "json",
+        "jsonParameters": {
+          "parameters": [
+            {
+              "name": "query",
+              "value": "={{ $node['Extract Parameters'].json.query }}"
+            }
+          ]
+        },
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "options": {
+          "timeout": 60000,
+          "response": {
+            "response": {
+              "neverError": true
+            }
+          }
+        }
+      },
+      "id": "playwright-scraper",
+      "name": "Playwright Movie Scraper",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [680, 300]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ $input.first().json }}",
+        "options": {}
+      },
+      "id": "respond-results",
+      "name": "Respond",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [900, 300]
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Extract Parameters",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract Parameters": {
+      "main": [
+        [
+          {
+            "node": "Playwright Movie Scraper",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Playwright Movie Scraper": {
+      "main": [
+        [
+          {
+            "node": "Respond",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "1",
+  "meta": {
+    "templateCredsSetupCompleted": true
+  },
+  "id": "playwright-movie-search-workflow",
+  "tags": ["movie-search", "playwright", "streaming"]
+}
