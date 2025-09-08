@@ -136,6 +136,42 @@
             height: 200px;
             object-fit: cover;
             background: #f0f0f0;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .watch-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.7);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 18px;
+            font-weight: 600;
+            opacity: 0;
+            transition: opacity 0.3s ease;
+            cursor: pointer;
+        }
+
+        .movie-card:hover .watch-overlay {
+            opacity: 1;
+        }
+
+        .movie-language {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            background: rgba(0, 0, 0, 0.8);
+            color: white;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 12px;
+            font-weight: 500;
         }
 
         .movie-info {
@@ -400,41 +436,45 @@
         }
 
         function createMovieCard(movie) {
-            const posterUrl = movie.poster || 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMzAwIiBoZWlnaHQ9IjIwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMTAwJSIgaGVpZ2h0PSIxMDAlIiBmaWxsPSIjZjBmMGYwIi8+PHRleHQgeD0iNTAlIiB5PSI1MCUiIGZvbnQtZmFtaWx5PSJBcmlhbCIgZm9udC1zaXplPSIxNCIgZmlsbD0iIzk5OSIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZHk9Ii4zZW0iPk5vIEltYWdlPC90ZXh0Pjwvc3ZnPg==';
+            const posterUrl = movie.poster || 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMzAwIiBoZWlnaHQ9IjQwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMTAwJSIgaGVpZ2h0PSIxMDAlIiBmaWxsPSIjNjY3ZWVhIi8+PHRleHQgeD0iNTAlIiB5PSI1MCUiIGZvbnQtZmFtaWx5PSJBcmlhbCwgc2Fucy1zZXJpZiIgZm9udC1zaXplPSIxOCIgZmlsbD0iI2ZmZmZmZiIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZHk9Ii4zZW0iPk5vIFBvc3RlcjwvdGV4dD48L3N2Zz4=';
             
             // Clean the main streaming URL exactly like working code
             const movieUrl = (movie.url || '#').toString().replace(/\s+/g, '').replace(/\n/g, '').replace(/\r/g, '').trim();
-            
-            const streamingButton = movieUrl && movieUrl !== '#' 
-                ? `<a href="javascript:void(0)" onclick="openStreamingUrl('${movieUrl}')" class="stream-link priority-1">
-                     🎬 Watch Now
-                   </a>`
-                : '<span style="color: #999; font-size: 0.85rem;">No streaming link available</span>';
+            const cleanTitle = movie.title || 'Unknown Movie';
 
-            return `
-                <div class="movie-card">
-                    <img src="${posterUrl}" alt="${movie.title}" class="movie-poster" 
-                         onerror="this.src='data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMzAwIiBoZWlnaHQ9IjIwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMTAwJSIgaGVpZ2h0PSIxMDAlIiBmaWxsPSIjZjBmMGYwIi8+PHRleHQgeD0iNTAlIiB5PSI1MCUiIGZvbnQtZmFtaWx5PSJBcmlhbCIgZm9udC1zaXplPSIxNCIgZmlsbD0iIzk5OSIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZHk9Ii4zZW0iPk5vIEltYWdlPC90ZXh0Pjwvc3ZnPg=='">
-                    <div class="movie-info">
-                        <h3 class="movie-title">${movie.title}</h3>
-                        <div class="movie-meta">
-                            ${movie.year !== 'N/A' ? `<span class="meta-tag year">${movie.year}</span>` : ''}
-                            ${movie.genre ? `<span class="meta-tag quality">${movie.genre}</span>` : ''}
-                            ${movie.source ? `<span class="meta-tag language">${movie.source}</span>` : ''}
-                        </div>
-                        <div class="streaming-links">
-                            <div class="streaming-title">🎬 Watch Online:</div>
-                            ${streamingButton}
-                            ${movie.movie_page ? `
-                            <div style="margin-top: 15px;">
-                                <a href="${movie.movie_page}" target="_blank" class="stream-link" style="background: linear-gradient(135deg, #FF5722 0%, #D84315 100%);">
-                                    🔗 Movie Page
-                                </a>
-                            </div>` : ''}
-                        </div>
+            const card = document.createElement('div');
+            card.className = 'movie-card';
+            
+            card.innerHTML = `
+                <div class="movie-poster">
+                    <img src="${posterUrl}" 
+                         alt="${cleanTitle}" 
+                         onerror="this.onerror=null; this.src='data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMzAwIiBoZWlnaHQ9IjQwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMTAwJSIgaGVpZ2h0PSIxMDAlIiBmaWxsPSIjNjY3ZWVhIi8+PHRleHQgeD0iNTAlIiB5PSI1MCUiIGZvbnQtZmFtaWx5PSJBcmlhbCwgc2Fucy1zZXJpZiIgZm9udC1zaXplPSIxOCIgZmlsbD0iI2ZmZmZmZiIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZHk9Ii4zZW0iPk5vIFBvc3RlcjwvdGV4dD48L3N2Zz4=';">
+                    <div class="watch-overlay">
+                        <i class="fas fa-play"></i> Watch Now
+                    </div>
+                    ${movie.genre ? `<div class="movie-language">${movie.genre}</div>` : ''}
+                </div>
+                <div class="movie-info">
+                    <h3 class="movie-title">${cleanTitle}</h3>
+                    <div class="movie-meta">
+                        ${movie.source ? `<span class="movie-year">${movie.source}</span>` : ''}
+                        ${movie.year && movie.year !== 'N/A' ? `<span class="movie-year">${movie.year}</span>` : ''}
+                    </div>
+                    <div class="movie-sources">
+                        <span class="source-tag">${movie.source || '5movierulz'}</span>
                     </div>
                 </div>
             `;
+            
+            // Add click handler to open movie - EXACTLY like working code
+            card.addEventListener('click', () => {
+                if (movieUrl && movieUrl !== '#') {
+                    window.open(movieUrl, '_blank');
+                }
+            });
+            
+            return card;
         }
 
         // Auto-focus search input
