@@ -547,14 +547,14 @@
                                         serviceName = '📺 Stream';
                                 }
                                 
-                                return `<a href="javascript:void(0)" onclick="openStreamingUrl('${cleanUrl}')" class="stream-link ${serviceClass}" style="margin: 5px 5px 5px 0; display: inline-block;">
+                                return `<a href="javascript:void(0)" onclick="event.stopPropagation(); openStreamingUrl('${cleanUrl}')" class="stream-link ${serviceClass}" style="margin: 5px 5px 5px 0; display: inline-block;">
                                     ${serviceName} (${stream.quality})
                                 </a>`;
                               }).join('')
                             : '<span style="color: #999; font-size: 0.85rem;">No streaming links available</span>'
                         }
                         <br>
-                        <a href="${movie.url || movieUrl}" target="_blank" class="movie-page-btn">
+                        <a href="${movie.url || movieUrl}" target="_blank" class="movie-page-btn" onclick="event.stopPropagation()">
                             🎬 Movie Page
                         </a>
                     </div>

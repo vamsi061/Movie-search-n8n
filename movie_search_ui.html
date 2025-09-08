@@ -447,7 +447,7 @@
                             <div class="streaming-title">🎬 Watch Online:</div>
                             ${streamingLinks}
                             <br>
-                            <a href="${movie.url || '#'}" target="_blank" class="movie-page-btn">
+                            <a href="${movie.url || '#'}" target="_blank" class="movie-page-btn" onclick="event.stopPropagation()">
                                 🎬 Movie Page
                             </a>
                         </div>
