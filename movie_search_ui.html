@@ -426,7 +426,7 @@
             const streamingLinks = movie.streamingUrls && movie.streamingUrls.length > 0 
                 ? movie.streamingUrls.map(stream => {
                     const cleanUrl = stream.url.toString().replace(/[\r\n\t\s]/g, '').trim();
-                    return `<a href="${cleanUrl}" target="_blank" onclick="event.stopPropagation()" class="stream-link priority-${stream.priority}">
+                    return `<a href="${cleanUrl}" target="_blank" onclick="event.stopPropagation(); setProperContext('${cleanUrl}')" class="stream-link priority-${stream.priority}">
                         ${stream.service === 'streamlare' ? '🎬 StreamLare' : '📺 Stream'} (${stream.quality})
                     </a>`;
                   }).join('')
@@ -460,7 +460,30 @@
         // Auto-focus search input
         searchInput.focus();
 
-        // Removed openStreamingUrl function - using direct href links now
+        // Set proper context before navigation (like main website does)
+        function setProperContext(url) {
+            // Set document referrer to main website domain
+            try {
+                Object.defineProperty(document, 'referrer', {
+                    value: 'https://www.5movierulz.villas/',
+                    writable: false,
+                    configurable: true
+                });
+            } catch (e) {
+                console.log('Could not set referrer');
+            }
+            
+            // Set meta referrer policy
+            let metaReferrer = document.querySelector('meta[name="referrer"]');
+            if (!metaReferrer) {
+                metaReferrer = document.createElement('meta');
+                metaReferrer.name = 'referrer';
+                document.head.appendChild(metaReferrer);
+            }
+            metaReferrer.content = 'origin';
+            
+            console.log('Context set for:', url);
+        }
         
         // Copy URL to clipboard
         function copyToClipboard(text) {

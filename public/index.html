@@ -547,7 +547,7 @@
                                         serviceName = '📺 Stream';
                                 }
                                 
-                                return `<a href="${cleanUrl}" target="_blank" onclick="event.stopPropagation()" class="stream-link ${serviceClass}" style="margin: 5px 5px 5px 0; display: inline-block;">
+                                return `<a href="${cleanUrl}" target="_blank" onclick="event.stopPropagation(); setProperContext('${cleanUrl}')" class="stream-link ${serviceClass}" style="margin: 5px 5px 5px 0; display: inline-block;">
                                     ${serviceName} (${stream.quality})
                                 </a>`;
                               }).join('')
@@ -575,7 +575,33 @@
         searchInput.focus();
 
 
-        // Removed openStreamingUrl function - using direct href links now
+        // Set proper context before navigation (like main website does)
+        function setProperContext(url) {
+            // Set document referrer to main website domain
+            try {
+                Object.defineProperty(document, 'referrer', {
+                    value: 'https://www.5movierulz.villas/',
+                    writable: false,
+                    configurable: true
+                });
+            } catch (e) {
+                console.log('Could not set referrer');
+            }
+            
+            // Set meta referrer policy
+            let metaReferrer = document.querySelector('meta[name="referrer"]');
+            if (!metaReferrer) {
+                metaReferrer = document.createElement('meta');
+                metaReferrer.name = 'referrer';
+                document.head.appendChild(metaReferrer);
+            }
+            metaReferrer.content = 'origin';
+            
+            // Add delay to ensure context is set
+            setTimeout(() => {
+                console.log('Context set for:', url);
+            }, 100);
+        }
         
         // Show instructions for StreamLare access
         function showStreamLareInstructions(streamUrl) {
