@@ -10,27 +10,31 @@ export default async function handler(req, res) {
     // Decode the URL
     const streamUrl = decodeURIComponent(url);
     
-    // Create an HTML page that will redirect with proper referer
+    // Set proper headers to mimic request from main domain
+    res.setHeader('Referer', 'https://www.5movierulz.villas/');
+    res.setHeader('Location', streamUrl);
+    res.status(302).end();
+
+  } catch (error) {
+    console.error('Stream redirect error:', error);
+    
+    // Fallback: Create iframe that loads from main domain context
     const html = `
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Redirecting to Stream...</title>
-    <meta name="referrer" content="origin">
+    <title>Stream Player</title>
     <style>
-        body {
-            font-family: Arial, sans-serif;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            height: 100vh;
-            margin: 0;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        body { margin: 0; padding: 0; background: #000; }
+        iframe { width: 100vw; height: 100vh; border: none; }
+        .loading {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
             color: white;
-        }
-        .container {
+            font-family: Arial, sans-serif;
             text-align: center;
-            padding: 20px;
         }
         .spinner {
             border: 4px solid rgba(255,255,255,0.3);
@@ -45,43 +49,32 @@ export default async function handler(req, res) {
             0% { transform: rotate(0deg); }
             100% { transform: rotate(360deg); }
         }
-        a {
-            color: white;
-            text-decoration: underline;
-        }
     </style>
 </head>
 <body>
-    <div class="container">
+    <div class="loading">
         <div class="spinner"></div>
-        <h2>Redirecting to Stream...</h2>
-        <p>If not redirected automatically, <a href="${streamUrl}" target="_blank">click here</a></p>
+        <p>Loading stream...</p>
     </div>
+    <iframe src="${streamUrl}" allow="autoplay; fullscreen" allowfullscreen></iframe>
     
     <script>
-        // Set the referer to the main website domain
-        Object.defineProperty(document, 'referrer', {
-            value: 'https://www.5movierulz.villas/',
-            writable: false
-        });
+        // Hide loading when iframe loads
+        document.querySelector('iframe').onload = function() {
+            document.querySelector('.loading').style.display = 'none';
+        };
         
-        // Redirect after a short delay
+        // Fallback: redirect if iframe fails
         setTimeout(function() {
-            window.location.replace('${streamUrl}');
-        }, 1500);
+            if (document.querySelector('.loading').style.display !== 'none') {
+                window.location.href = '${streamUrl}';
+            }
+        }, 5000);
     </script>
 </body>
 </html>`;
 
     res.setHeader('Content-Type', 'text/html');
-    res.setHeader('Referrer-Policy', 'origin');
     res.status(200).send(html);
-
-  } catch (error) {
-    console.error('Stream redirect error:', error);
-    res.status(500).json({ 
-      error: 'Failed to redirect to stream',
-      message: error.message 
-    });
   }
 }
