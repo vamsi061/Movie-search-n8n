@@ -48,6 +48,11 @@ export default async function handler(req, res) {
     
     // Debug: N8N Response received
     console.log('Raw N8N Response:', JSON.stringify(data, null, 2));
+    console.log('N8N Response keys:', Object.keys(data));
+    if (Array.isArray(data) && data[0]) {
+      console.log('First movie keys:', Object.keys(data[0]));
+      console.log('First movie streamingUrls:', data[0].streamingUrls);
+    }
     
     // Handle different response formats from n8n
     let formattedResponse;
