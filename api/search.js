@@ -47,12 +47,6 @@ export default async function handler(req, res) {
     const data = await response.json();
     
     // Debug: N8N Response received
-    console.log('Raw N8N Response:', JSON.stringify(data, null, 2));
-    console.log('N8N Response keys:', Object.keys(data));
-    if (Array.isArray(data) && data[0]) {
-      console.log('First movie keys:', Object.keys(data[0]));
-      console.log('First movie streamingUrls:', data[0].streamingUrls);
-    }
     
     // Handle different response formats from n8n
     let formattedResponse;
@@ -74,50 +68,33 @@ export default async function handler(req, res) {
       });
     }
     
-    // Check if n8n returned an error response (ScrapingAnt or other errors)
-    if (Array.isArray(data) && data[0]?.status === "error") {
-      console.log('N8N returned error:', data[0]);
-      return res.status(200).json({
-        query: query,
-        results: [],
-        total: 0,
-        message: `Scraping service error: ${data[0].message}`,
-        source: "5movierulz.villas",
-        success: false,
-        error: data[0].message,
-        debug: data[0].debug
-      });
-    }
-    
     
     // Format response to match the expected structure
     let results = [];
     
-    console.log('Data type check:', typeof data, 'Is array:', Array.isArray(data));
-    console.log('Data structure:', data);
-    
     if (Array.isArray(data)) {
       results = data;
-      console.log('Using data as array, results:', results.length);
     } else if (data.results && Array.isArray(data.results)) {
       results = data.results;
-      console.log('Using data.results, results:', results.length);
     } else if (data.title) {
       // Single movie object
       results = [data];
-      console.log('Using single movie object');
-    } else {
-      console.log('No valid data structure found');
     }
     
-    // Pass through ALL data from n8n without any modifications
-    const formattedResults = results.map((movie, index) => {
-      console.log(`Processing movie ${index}:`, movie.title);
-      console.log(`Movie ${index} original object:`, JSON.stringify(movie, null, 2));
-      
-      // Return the exact movie object as received from n8n
-      return movie;
-    });
+    // Clean and format each movie result
+    const formattedResults = results.map(movie => ({
+      title: movie.title || 'Unknown Movie',
+      originalUrl: movie.originalUrl || movie.moviePageUrl || movie.url,
+      source: movie.source || '5movierulz.villas',
+      year: movie.year || 'Unknown',
+      poster: movie.poster || null,
+      quality: movie.quality || 'Unknown',
+      language: movie.language || 'Unknown',
+      streamingUrls: movie.streamingUrls || [],
+      moviePageUrl: movie.moviePageUrl || movie.originalUrl || movie.url,
+      error: movie.error || null,
+      url: movie.url || (movie.streamingUrls && movie.streamingUrls[0] ? movie.streamingUrls[0].url : null)
+    }));
     
     formattedResponse = {
       query: query,
