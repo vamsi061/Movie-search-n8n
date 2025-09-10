@@ -504,57 +504,13 @@
                 <div class="movie-info">
                     <h3 class="movie-title">${cleanTitle}</h3>
                     <div class="movie-meta">
-                        ${movie.source ? `<span class="meta-tag" style="background: #e3f2fd; color: #1976d2;">5MovieRulz</span>` : ''}
+                        ${movie.source ? `<span class="meta-tag" style="background: #e3f2fd; color: #1976d2;">${movie.source}</span>` : ''}
                         ${movie.year && movie.year !== 'N/A' && movie.year !== 'Unknown' ? `<span class="meta-tag year">${movie.year}</span>` : ''}
-                        ${movie.quality && movie.quality !== 'Unknown' ? `<span class="meta-tag quality">${movie.quality}</span>` : ''}
                         ${movie.language && movie.language !== 'Unknown' ? `<span class="meta-tag language">${movie.language}</span>` : ''}
+                        ${movie.quality && movie.quality !== 'Unknown' ? `<span class="meta-tag quality">${movie.quality}</span>` : ''}
                     </div>
                     <div class="streaming-links">
-                        <div class="streaming-title">🎬 Watch Online:</div>
-                        ${movie.streamingUrls && movie.streamingUrls.length > 0 
-                            ? movie.streamingUrls.map((stream, index) => {
-                                const cleanUrl = stream.url.toString().replace(/[\r\n\t\s]/g, '').trim();
-                                
-                                let serviceName = '📺 Stream';
-                                let serviceClass = 'priority-' + stream.priority;
-                                
-                                switch(stream.service) {
-                                    case 'uperbox':
-                                        serviceName = '🎬 Uperbox';
-                                        serviceClass = 'priority-1';
-                                        break;
-                                    case 'netutv':
-                                        serviceName = '📺 NetuTV';
-                                        serviceClass = 'priority-1';
-                                        break;
-                                    case 'torrent':
-                                        serviceName = '🧲 Torrent';
-                                        serviceClass = 'priority-2';
-                                        break;
-                                    case 'streamlare':
-                                        serviceName = '🎬 StreamLare';
-                                        serviceClass = 'priority-3';
-                                        break;
-                                    case 'doodstream':
-                                        serviceName = '📺 DoodStream';
-                                        serviceClass = 'priority-2';
-                                        break;
-                                    case 'mixdrop':
-                                        serviceName = '📺 MixDrop';
-                                        serviceClass = 'priority-2';
-                                        break;
-                                    default:
-                                        serviceName = '📺 Stream';
-                                }
-                                
-                                return `<a href="${cleanUrl}" target="_blank" onclick="event.stopPropagation(); setProperContext('${cleanUrl}')" class="stream-link ${serviceClass}" style="margin: 5px 5px 5px 0; display: inline-block;">
-                                    ${serviceName} (${stream.quality})
-                                </a>`;
-                              }).join('')
-                            : '<span style="color: #999; font-size: 0.85rem;">No streaming links available</span>'
-                        }
-                        <br>
-                        <a href="${movie.url || movieUrl}" target="_blank" class="movie-page-btn" onclick="event.stopPropagation()">
+                        <a href="${movie.moviePageUrl || movie.originalUrl || '#'}" target="_blank" class="movie-page-btn" onclick="event.stopPropagation()">
                             🎬 Movie Page
                         </a>
                     </div>
