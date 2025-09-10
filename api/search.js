@@ -84,20 +84,14 @@ export default async function handler(req, res) {
       results = [data];
     }
     
-    // Clean and format each movie result
-    const formattedResults = results.map(movie => ({
-      title: movie.title || 'Unknown Movie',
-      originalUrl: movie.originalUrl || movie.moviePageUrl || movie.url,
-      source: movie.source || '5movierulz.villas',
-      year: movie.year || 'Unknown',
-      poster: movie.poster || null,
-      quality: movie.quality || 'Unknown',
-      language: movie.language || 'Unknown',
-      streamingUrls: movie.streamingUrls || [],
-      moviePageUrl: movie.moviePageUrl || movie.originalUrl || movie.url,
-      error: movie.error || null,
-      url: movie.url || (movie.streamingUrls && movie.streamingUrls[0] ? movie.streamingUrls[0].url : null)
-    }));
+    // Preserve ALL fields from n8n response
+    const formattedResults = results.map(movie => {
+      return {
+        ...movie, // Keep everything from n8n
+        source: movie.source || '5movierulz.villas',
+        moviePageUrl: movie.moviePageUrl || movie.originalUrl || movie.url
+      };
+    });
     
     formattedResponse = {
       query: query,
