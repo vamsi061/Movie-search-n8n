@@ -412,12 +412,14 @@
                 hideLoading();
 
                 // Debug: N8N API Response received
+                console.log('API Response Data:', JSON.stringify(data, null, 2));
 
                 if (data.results && data.results.length > 0) {
-                    // Add source identifier to each movie
+                    // Ensure all movie properties are preserved including streamingUrls
                     const moviesWithSource = data.results.map(movie => ({
                         ...movie,
-                        source: movie.source || '5movierulz.villas'
+                        source: movie.source || '5movierulz.villas',
+                        streamingUrls: movie.streamingUrls || [] // Explicitly preserve streamingUrls
                     }));
                     
                     displayResults(moviesWithSource, data.total || moviesWithSource.length, query, [`5MovieRulz (${moviesWithSource.length})`]);
