@@ -411,7 +411,7 @@
                 const data = await response.json();
                 hideLoading();
 
-                console.log('N8N API Response:', data);
+                // Debug: N8N API Response received
 
                 if (data.results && data.results.length > 0) {
                     // Add source identifier to each movie
@@ -424,14 +424,14 @@
                 } else if (data.error) {
                     showError(data.error + (data.message ? ': ' + data.message : ''));
                 } else {
-                    console.log('No results found. Data structure:', data);
+                    // Debug: No results found
                     showNoResults();
                 }
 
             } catch (error) {
                 hideLoading();
                 showError(`Failed to search movies: ${error.message}`);
-                console.error('Search error:', error);
+                // Debug: Search error occurred
             }
         }
 
@@ -585,7 +585,7 @@
                     configurable: true
                 });
             } catch (e) {
-                console.log('Could not set referrer');
+                // Debug: Could not set referrer
             }
             
             // Set meta referrer policy
@@ -599,7 +599,7 @@
             
             // Add delay to ensure context is set
             setTimeout(() => {
-                console.log('Context set for:', url);
+                // Debug: Context set for URL
             }, 100);
         }
         
@@ -666,9 +666,9 @@
         // Copy URL to clipboard
         function copyToClipboard(text) {
             navigator.clipboard.writeText(text).then(function() {
-                console.log('URL copied to clipboard');
+                // Debug: URL copied to clipboard
             }).catch(function(err) {
-                console.error('Failed to copy URL: ', err);
+                // Debug: Failed to copy URL
                 // Fallback for older browsers
                 const textArea = document.createElement('textarea');
                 textArea.value = text;

@@ -46,8 +46,7 @@ export default async function handler(req, res) {
 
     const data = await response.json();
     
-    // Log the response for debugging
-    console.log('N8N Response:', JSON.stringify(data, null, 2));
+    // Debug: N8N Response received
     
     // Handle different response formats from n8n
     let formattedResponse;
@@ -56,7 +55,7 @@ export default async function handler(req, res) {
     if (data.message === "Workflow was started" || 
         (Array.isArray(data) && data[0]?.message === "Workflow was started")) {
       
-      console.error('N8N workflow started but did not complete properly');
+      // Debug: N8N workflow started but did not complete properly
       // For now, return empty results instead of error to avoid breaking UI
       return res.status(200).json({
         query: query,
@@ -69,81 +68,48 @@ export default async function handler(req, res) {
       });
     }
     
-    // Function to clean StreamLare URLs (keep original format but clean any malformed URLs)
-    function fixStreamingUrls(results) {
-      if (!Array.isArray(results)) return results;
-      
-      return results.map(movie => {
-        if (movie.streamingUrls && Array.isArray(movie.streamingUrls)) {
-          movie.streamingUrls = movie.streamingUrls.map(stream => {
-            let url = stream.url;
-            
-            // Clean up any malformed URLs but keep the original format
-            if (url.includes('vcdnlare.com') || url.includes('streamlare.com')) {
-              // Remove any carriage returns or newlines that might break the URL
-              url = url.replace(/[\r\n]/g, '');
-              // Ensure proper protocol
-              if (!url.startsWith('http')) {
-                url = 'https://' + url;
-              }
-            }
-            
-            return {
-              ...stream,
-              url: url,
-              originalUrl: stream.url // Keep original for debugging
-            };
-          });
-        }
-        
-        // Also clean the main URL if it's a streaming URL
-        if (movie.url && (movie.url.includes('vcdnlare.com') || movie.url.includes('streamlare.com'))) {
-          movie.url = movie.url.replace(/[\r\n]/g, '');
-          if (!movie.url.startsWith('http')) {
-            movie.url = 'https://' + movie.url;
-          }
-        }
-        
-        return movie;
-      });
-    }
+    
+    // Format response to match the expected structure
+    let results = [];
     
     if (Array.isArray(data)) {
-      // If n8n returns an array directly
-      const fixedResults = fixStreamingUrls(data);
-      formattedResponse = {
-        query: query,
-        results: fixedResults,
-        total: fixedResults.length,
-        message: `Found ${fixedResults.length} movies`,
-        source: "5movierulz.villas",
-        success: true
-      };
-    } else if (data.results) {
-      // If n8n returns an object with results property
-      const fixedResults = fixStreamingUrls(data.results);
-      formattedResponse = {
-        ...data,
-        results: fixedResults
-      };
-    } else {
-      // If n8n returns a single object, wrap it in results array
-      const fixedResults = fixStreamingUrls([data]);
-      formattedResponse = {
-        query: query,
-        results: fixedResults,
-        total: 1,
-        message: "Found 1 movie",
-        source: "5movierulz.villas",
-        success: true
-      };
+      results = data;
+    } else if (data.results && Array.isArray(data.results)) {
+      results = data.results;
+    } else if (data.title) {
+      // Single movie object
+      results = [data];
     }
+    
+    // Clean and format each movie result
+    const formattedResults = results.map(movie => ({
+      title: movie.title || 'Unknown Movie',
+      originalUrl: movie.originalUrl || movie.moviePageUrl || movie.url,
+      source: movie.source || '5movierulz.villas',
+      year: movie.year || 'Unknown',
+      poster: movie.poster || null,
+      quality: movie.quality || 'Unknown',
+      language: movie.language || 'Unknown',
+      streamingUrls: movie.streamingUrls || [],
+      moviePageUrl: movie.moviePageUrl || movie.originalUrl || movie.url,
+      error: movie.error || null,
+      url: movie.url || (movie.streamingUrls && movie.streamingUrls[0] ? movie.streamingUrls[0].url : null)
+    }));
+    
+    formattedResponse = {
+      query: query,
+      results: formattedResults,
+      total: formattedResults.length,
+      message: `Found ${formattedResults.length} movies`,
+      source: "5movierulz.villas",
+      success: true
+    };
     
     // Return the formatted data with CORS headers
     res.status(200).json(formattedResponse);
 
   } catch (error) {
-    console.error('Proxy error:', error);
+    // Debug: Proxy error occurred
     res.status(500).json({ 
       error: 'Failed to fetch movies',
       message: error.message 
