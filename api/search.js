@@ -105,35 +105,19 @@ export default async function handler(req, res) {
       console.log('No valid data structure found');
     }
     
-    // Clean and format each movie result - preserve ALL original properties
+    // Simply pass through the results without complex formatting that might lose data
     const formattedResults = results.map((movie, index) => {
       console.log(`Processing movie ${index}:`, movie.title);
-      console.log(`Movie ${index} streamingUrls:`, movie.streamingUrls);
+      console.log(`Movie ${index} has streamingUrls:`, !!movie.streamingUrls, 'Count:', movie.streamingUrls?.length);
       
-      // Start with all original movie properties
-      const formattedMovie = {
-        ...movie, // Preserve everything from original
-        title: movie.title || 'Unknown Movie',
-        originalUrl: movie.originalUrl || movie.moviePageUrl || movie.url,
+      // Return the movie object with minimal changes to preserve all data
+      return {
+        ...movie, // Keep everything exactly as received
+        // Only add missing fields, don't override existing ones
         source: movie.source || '5movierulz.villas',
-        year: movie.year || 'Unknown',
-        poster: movie.poster || null,
-        quality: movie.quality || 'Unknown',
-        language: movie.language || 'Unknown',
-        moviePageUrl: movie.moviePageUrl || movie.originalUrl || movie.url,
-        error: movie.error || null,
-        url: movie.url || (movie.streamingUrls && movie.streamingUrls[0] ? movie.streamingUrls[0].url : null)
+        moviePageUrl: movie.moviePageUrl || movie.originalUrl,
+        error: movie.error || null
       };
-      
-      // Ensure streamingUrls is preserved exactly as received
-      if (movie.streamingUrls) {
-        formattedMovie.streamingUrls = movie.streamingUrls;
-        console.log(`Movie ${index} formatted streamingUrls:`, formattedMovie.streamingUrls);
-      } else {
-        console.log(`Movie ${index} has NO streamingUrls!`);
-      }
-      
-      return formattedMovie;
     });
     
     formattedResponse = {
