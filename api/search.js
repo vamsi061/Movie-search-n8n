@@ -47,6 +47,7 @@ export default async function handler(req, res) {
     const data = await response.json();
     
     // Debug: N8N Response received
+    console.log('Raw N8N Response:', JSON.stringify(data, null, 2));
     
     // Handle different response formats from n8n
     let formattedResponse;
@@ -81,20 +82,30 @@ export default async function handler(req, res) {
       results = [data];
     }
     
-    // Clean and format each movie result
-    const formattedResults = results.map(movie => ({
-      title: movie.title || 'Unknown Movie',
-      originalUrl: movie.originalUrl || movie.moviePageUrl || movie.url,
-      source: movie.source || '5movierulz.villas',
-      year: movie.year || 'Unknown',
-      poster: movie.poster || null,
-      quality: movie.quality || 'Unknown',
-      language: movie.language || 'Unknown',
-      streamingUrls: movie.streamingUrls || [],
-      moviePageUrl: movie.moviePageUrl || movie.originalUrl || movie.url,
-      error: movie.error || null,
-      url: movie.url || (movie.streamingUrls && movie.streamingUrls[0] ? movie.streamingUrls[0].url : null)
-    }));
+    // Clean and format each movie result - preserve ALL original properties
+    const formattedResults = results.map(movie => {
+      // Start with all original movie properties
+      const formattedMovie = {
+        ...movie, // Preserve everything from original
+        title: movie.title || 'Unknown Movie',
+        originalUrl: movie.originalUrl || movie.moviePageUrl || movie.url,
+        source: movie.source || '5movierulz.villas',
+        year: movie.year || 'Unknown',
+        poster: movie.poster || null,
+        quality: movie.quality || 'Unknown',
+        language: movie.language || 'Unknown',
+        moviePageUrl: movie.moviePageUrl || movie.originalUrl || movie.url,
+        error: movie.error || null,
+        url: movie.url || (movie.streamingUrls && movie.streamingUrls[0] ? movie.streamingUrls[0].url : null)
+      };
+      
+      // Ensure streamingUrls is preserved exactly as received
+      if (movie.streamingUrls) {
+        formattedMovie.streamingUrls = movie.streamingUrls;
+      }
+      
+      return formattedMovie;
+    });
     
     formattedResponse = {
       query: query,
