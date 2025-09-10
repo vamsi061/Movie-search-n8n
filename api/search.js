@@ -69,6 +69,21 @@ export default async function handler(req, res) {
       });
     }
     
+    // Check if n8n returned an error response (ScrapingAnt or other errors)
+    if (Array.isArray(data) && data[0]?.status === "error") {
+      console.log('N8N returned error:', data[0]);
+      return res.status(200).json({
+        query: query,
+        results: [],
+        total: 0,
+        message: `Scraping service error: ${data[0].message}`,
+        source: "5movierulz.villas",
+        success: false,
+        error: data[0].message,
+        debug: data[0].debug
+      });
+    }
+    
     
     // Format response to match the expected structure
     let results = [];
