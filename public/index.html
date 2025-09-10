@@ -510,6 +510,55 @@
                         ${movie.quality && movie.quality !== 'Unknown' ? `<span class="meta-tag quality">${movie.quality}</span>` : ''}
                     </div>
                     <div class="streaming-links">
+                        <div class="streaming-title">🎬 Watch Online:</div>
+                        ${movie.streamingUrls && movie.streamingUrls.length > 0 
+                            ? movie.streamingUrls.map((stream, index) => {
+                                const cleanUrl = stream.url.toString().replace(/[\r\n\t]/g, '').trim();
+                                
+                                let serviceName = '📺 Stream';
+                                let serviceClass = 'priority-' + stream.priority;
+                                
+                                switch(stream.service) {
+                                    case 'uperbox':
+                                        serviceName = '🎬 Uperbox';
+                                        serviceClass = 'priority-1';
+                                        break;
+                                    case 'netutv':
+                                        serviceName = '📺 NetuTV';
+                                        serviceClass = 'priority-1';
+                                        break;
+                                    case 'torrent':
+                                        serviceName = '🧲 Torrent';
+                                        serviceClass = 'priority-2';
+                                        break;
+                                    case 'streamlare':
+                                        serviceName = '🎬 StreamLare';
+                                        serviceClass = 'priority-3';
+                                        break;
+                                    case 'doodstream':
+                                        serviceName = '📺 DoodStream';
+                                        serviceClass = 'priority-2';
+                                        break;
+                                    case 'mixdrop':
+                                        serviceName = '📺 MixDrop';
+                                        serviceClass = 'priority-2';
+                                        break;
+                                    case 'streamtape':
+                                    case 'generic':
+                                        serviceName = '📺 StreamTape';
+                                        serviceClass = 'priority-2';
+                                        break;
+                                    default:
+                                        serviceName = '📺 Stream';
+                                }
+                                
+                                return `<a href="${cleanUrl}" target="_blank" onclick="event.stopPropagation(); setProperContext('${cleanUrl}')" class="stream-link ${serviceClass}" style="margin: 5px 5px 5px 0; display: inline-block;">
+                                    ${serviceName} (${stream.quality})
+                                </a>`;
+                              }).join('')
+                            : '<span style="color: #999; font-size: 0.85rem;">No streaming links available</span>'
+                        }
+                        <br>
                         <a href="${movie.moviePageUrl || movie.originalUrl || '#'}" target="_blank" class="movie-page-btn" onclick="event.stopPropagation()">
                             🎬 Movie Page
                         </a>
