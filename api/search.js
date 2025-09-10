@@ -47,6 +47,9 @@ export default async function handler(req, res) {
     const data = await response.json();
     
     // Debug: N8N Response received
+    console.log('=== N8N RAW RESPONSE ===');
+    console.log(JSON.stringify(data, null, 2));
+    console.log('=== END N8N RESPONSE ===');
     
     // Handle different response formats from n8n
     let formattedResponse;
@@ -106,6 +109,9 @@ export default async function handler(req, res) {
     };
     
     // Return the formatted data with CORS headers
+    console.log('=== API FINAL RESPONSE ===');
+    console.log(JSON.stringify(formattedResponse, null, 2));
+    console.log('=== END API RESPONSE ===');
     res.status(200).json(formattedResponse);
 
   } catch (error) {
