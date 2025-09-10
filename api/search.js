@@ -110,19 +110,13 @@ export default async function handler(req, res) {
       console.log('No valid data structure found');
     }
     
-    // Simply pass through the results without complex formatting that might lose data
+    // Pass through ALL data from n8n without any modifications
     const formattedResults = results.map((movie, index) => {
       console.log(`Processing movie ${index}:`, movie.title);
-      console.log(`Movie ${index} has streamingUrls:`, !!movie.streamingUrls, 'Count:', movie.streamingUrls?.length);
+      console.log(`Movie ${index} original object:`, JSON.stringify(movie, null, 2));
       
-      // Return the movie object with minimal changes to preserve all data
-      return {
-        ...movie, // Keep everything exactly as received
-        // Only add missing fields, don't override existing ones
-        source: movie.source || '5movierulz.villas',
-        moviePageUrl: movie.moviePageUrl || movie.originalUrl,
-        error: movie.error || null
-      };
+      // Return the exact movie object as received from n8n
+      return movie;
     });
     
     formattedResponse = {
