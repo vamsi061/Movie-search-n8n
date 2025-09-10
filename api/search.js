@@ -73,17 +73,28 @@ export default async function handler(req, res) {
     // Format response to match the expected structure
     let results = [];
     
+    console.log('Data type check:', typeof data, 'Is array:', Array.isArray(data));
+    console.log('Data structure:', data);
+    
     if (Array.isArray(data)) {
       results = data;
+      console.log('Using data as array, results:', results.length);
     } else if (data.results && Array.isArray(data.results)) {
       results = data.results;
+      console.log('Using data.results, results:', results.length);
     } else if (data.title) {
       // Single movie object
       results = [data];
+      console.log('Using single movie object');
+    } else {
+      console.log('No valid data structure found');
     }
     
     // Clean and format each movie result - preserve ALL original properties
-    const formattedResults = results.map(movie => {
+    const formattedResults = results.map((movie, index) => {
+      console.log(`Processing movie ${index}:`, movie.title);
+      console.log(`Movie ${index} streamingUrls:`, movie.streamingUrls);
+      
       // Start with all original movie properties
       const formattedMovie = {
         ...movie, // Preserve everything from original
@@ -102,6 +113,9 @@ export default async function handler(req, res) {
       // Ensure streamingUrls is preserved exactly as received
       if (movie.streamingUrls) {
         formattedMovie.streamingUrls = movie.streamingUrls;
+        console.log(`Movie ${index} formatted streamingUrls:`, formattedMovie.streamingUrls);
+      } else {
+        console.log(`Movie ${index} has NO streamingUrls!`);
       }
       
       return formattedMovie;
