@@ -649,19 +649,56 @@
             buttonElement.disabled = true;
             
             try {
-                // You can replace this with your actual streaming links API endpoint
-                const response = await fetch(`/api/stream-proxy?url=${encodeURIComponent(movieUrl)}`, {
-                    method: 'GET',
-                    headers: {
-                        'Accept': 'application/json',
+                // Try different possible endpoints for fetching streaming links
+                let response;
+                let data;
+                
+                // First try the search endpoint with the movie URL to get full movie data
+                try {
+                    const movieTitle = buttonElement.closest('.movie-card').querySelector('.movie-title').textContent;
+                    response = await fetch(`/api/search?query=${encodeURIComponent(movieTitle)}`, {
+                        method: 'GET',
+                        headers: {
+                            'Accept': 'application/json',
+                        }
+                    });
+                    
+                    if (response.ok) {
+                        data = await response.json();
+                        
+                        // Find the specific movie in results that matches the URL
+                        let movies = Array.isArray(data) ? data : (data.results || []);
+                        const targetMovie = movies.find(m => m.url === movieUrl);
+                        
+                        if (targetMovie && targetMovie.streamingUrls) {
+                            data = targetMovie;
+                        } else {
+                            throw new Error('Movie not found with streaming URLs');
+                        }
+                    } else {
+                        throw new Error('Search endpoint failed');
                     }
-                });
+                } catch (searchError) {
+                    // Fallback to stream-proxy endpoint
+                    response = await fetch(`/api/stream-proxy?url=${encodeURIComponent(movieUrl)}`, {
+                        method: 'GET',
+                        headers: {
+                            'Accept': 'application/json',
+                        }
+                    });
 
-                if (!response.ok) {
-                    throw new Error(`HTTP error! status: ${response.status}`);
+                    if (!response.ok) {
+                        throw new Error(`HTTP error! status: ${response.status}`);
+                    }
+
+                    const responseText = await response.text();
+                    try {
+                        data = JSON.parse(responseText);
+                    } catch (parseError) {
+                        console.error('Response is not JSON:', responseText.substring(0, 200));
+                        throw new Error('Invalid JSON response from server');
+                    }
                 }
-
-                const data = await response.json();
                 
                 if (data.streamingUrls && data.streamingUrls.length > 0) {
                     // Find the movie card and update streaming links
@@ -669,16 +706,29 @@
                     const streamingLinksDiv = movieCard.querySelector('.streaming-links');
                     const streamingTitle = streamingLinksDiv.querySelector('.streaming-title');
                     
-                    // Create streaming links HTML
+                    // Create streaming links HTML - handle both string arrays and object arrays
                     const streamingLinksHtml = data.streamingUrls
-                        .sort((a, b) => (a.priority || 999) - (b.priority || 999))
-                        .map(stream => {
-                            const cleanUrl = stream.url.toString().replace(/[\r\n\t]/g, '').trim();
-                            const service = stream.service || 'generic';
-                            const quality = stream.quality || 'HD';
+                        .filter(stream => stream && stream.trim && stream.trim() !== '') // Filter out empty strings
+                        .map((stream, index) => {
+                            // Handle both string URLs and object URLs
+                            let cleanUrl, service, quality, priority;
+                            
+                            if (typeof stream === 'string') {
+                                // String format from N8N response
+                                cleanUrl = stream.toString().replace(/[\r\n\t]/g, '').trim();
+                                service = 'generic';
+                                quality = data.quality || 'HD'; // Use movie quality if available
+                                priority = index + 1; // Use index as priority
+                            } else {
+                                // Object format
+                                cleanUrl = stream.url.toString().replace(/[\r\n\t]/g, '').trim();
+                                service = stream.service || 'generic';
+                                quality = stream.quality || 'HD';
+                                priority = stream.priority || index + 1;
+                            }
                             
                             let serviceName = '📺 Stream';
-                            let serviceClass = `priority-${Math.min(stream.priority || 5, 3)}`;
+                            let serviceClass = `priority-${Math.min(priority, 3)}`;
                             
                             // Detect service from URL
                             const urlLower = cleanUrl.toLowerCase();
@@ -694,6 +744,15 @@
                             } else if (urlLower.includes('streamlare')) {
                                 serviceName = '🎬 StreamLare';
                                 serviceClass = 'priority-3';
+                            } else if (urlLower.includes('uperbox')) {
+                                serviceName = '🎬 Uperbox';
+                                serviceClass = 'priority-1';
+                            } else if (urlLower.includes('netutv')) {
+                                serviceName = '📺 NetuTV';
+                                serviceClass = 'priority-1';
+                            } else if (urlLower.includes('torrent') || urlLower.includes('.torrent')) {
+                                serviceName = '🧲 Torrent';
+                                serviceClass = 'priority-2';
                             }
                             
                             return `<a href="${cleanUrl}" target="_blank" onclick="event.stopPropagation(); setProperContext('${cleanUrl}')" class="stream-link ${serviceClass}" style="margin: 5px 5px 5px 0; display: inline-block;">
@@ -702,7 +761,15 @@
                         }).join('');
                     
                     // Update the streaming links section
-                    streamingTitle.nextElementSibling.innerHTML = streamingLinksHtml;
+                    const infoDiv = streamingTitle.nextElementSibling;
+                    if (infoDiv && infoDiv.innerHTML.includes('Streaming links available on movie page')) {
+                        infoDiv.innerHTML = streamingLinksHtml;
+                    } else {
+                        // Create new div for streaming links
+                        const newDiv = document.createElement('div');
+                        newDiv.innerHTML = streamingLinksHtml;
+                        streamingTitle.parentNode.insertBefore(newDiv, streamingTitle.nextSibling);
+                    }
                     
                     buttonElement.innerHTML = '✅ Loaded';
                     buttonElement.style.background = 'linear-gradient(135deg, #4CAF50 0%, #45a049 100%)';
@@ -714,8 +781,15 @@
                 
             } catch (error) {
                 console.error('Error fetching streaming links:', error);
+                console.log('Movie URL:', movieUrl);
+                console.log('Available API endpoints to try:');
+                console.log('1. /api/search?query=<movie_title>');
+                console.log('2. /api/stream-proxy?url=<movie_url>');
+                console.log('3. /api/playwright-scrape?url=<movie_url>');
+                
                 buttonElement.innerHTML = '❌ Error';
                 buttonElement.style.background = 'linear-gradient(135deg, #f44336 0%, #d32f2f 100%)';
+                buttonElement.title = `Error: ${error.message}`;
             }
             
             // Re-enable button after 3 seconds
