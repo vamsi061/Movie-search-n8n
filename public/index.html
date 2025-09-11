@@ -653,50 +653,68 @@
                 let response;
                 let data;
                 
-                // First try the search endpoint with the movie URL to get full movie data
+                // Try to fetch streaming links directly from N8N webhook
                 try {
-                    const movieTitle = buttonElement.closest('.movie-card').querySelector('.movie-title').textContent;
-                    response = await fetch(`/api/search?query=${encodeURIComponent(movieTitle)}`, {
-                        method: 'GET',
+                    // Use the N8N webhook directly for getting streaming URLs
+                    const n8nUrl = 'https://n8n-instance-vnyx.onrender.com/webhook/movie-scraper-villas';
+                    
+                    response = await fetch(n8nUrl, {
+                        method: 'POST',
                         headers: {
+                            'Content-Type': 'application/json',
                             'Accept': 'application/json',
-                        }
+                        },
+                        body: JSON.stringify({
+                            query: buttonElement.closest('.movie-card').querySelector('.movie-title').textContent,
+                            url: movieUrl // Pass the specific movie URL
+                        })
                     });
                     
                     if (response.ok) {
                         data = await response.json();
                         
-                        // Find the specific movie in results that matches the URL
+                        // Handle N8N response format
                         let movies = Array.isArray(data) ? data : (data.results || []);
-                        const targetMovie = movies.find(m => m.url === movieUrl);
+                        const targetMovie = movies.find(m => m.url === movieUrl || m.moviePageUrl === movieUrl);
                         
-                        if (targetMovie && targetMovie.streamingUrls) {
+                        if (targetMovie && targetMovie.streamingUrls && targetMovie.streamingUrls.length > 0) {
                             data = targetMovie;
                         } else {
-                            throw new Error('Movie not found with streaming URLs');
+                            throw new Error('Movie not found with streaming URLs in N8N response');
                         }
                     } else {
-                        throw new Error('Search endpoint failed');
+                        throw new Error(`N8N webhook failed with status: ${response.status}`);
                     }
-                } catch (searchError) {
-                    // Fallback to stream-proxy endpoint
-                    response = await fetch(`/api/stream-proxy?url=${encodeURIComponent(movieUrl)}`, {
-                        method: 'GET',
-                        headers: {
-                            'Accept': 'application/json',
-                        }
-                    });
-
-                    if (!response.ok) {
-                        throw new Error(`HTTP error! status: ${response.status}`);
-                    }
-
-                    const responseText = await response.text();
+                } catch (n8nError) {
+                    console.log('N8N direct call failed:', n8nError.message);
+                    
+                    // Fallback to search endpoint
                     try {
-                        data = JSON.parse(responseText);
-                    } catch (parseError) {
-                        console.error('Response is not JSON:', responseText.substring(0, 200));
-                        throw new Error('Invalid JSON response from server');
+                        const movieTitle = buttonElement.closest('.movie-card').querySelector('.movie-title').textContent;
+                        response = await fetch(`/api/search?query=${encodeURIComponent(movieTitle)}`, {
+                            method: 'GET',
+                            headers: {
+                                'Accept': 'application/json',
+                            }
+                        });
+                        
+                        if (response.ok) {
+                            data = await response.json();
+                            
+                            // Find the specific movie in results that matches the URL
+                            let movies = Array.isArray(data) ? data : (data.results || []);
+                            const targetMovie = movies.find(m => m.url === movieUrl);
+                            
+                            if (targetMovie && targetMovie.streamingUrls) {
+                                data = targetMovie;
+                            } else {
+                                throw new Error('Movie not found with streaming URLs');
+                            }
+                        } else {
+                            throw new Error('Search endpoint also failed');
+                        }
+                    } catch (searchError) {
+                        throw new Error(`Both N8N and search endpoints failed: ${n8nError.message}, ${searchError.message}`);
                     }
                 }
                 
@@ -783,9 +801,10 @@
                 console.error('Error fetching streaming links:', error);
                 console.log('Movie URL:', movieUrl);
                 console.log('Available API endpoints to try:');
-                console.log('1. /api/search?query=<movie_title>');
-                console.log('2. /api/stream-proxy?url=<movie_url>');
-                console.log('3. /api/playwright-scrape?url=<movie_url>');
+                console.log('1. N8N Direct: https://n8n-instance-vnyx.onrender.com/webhook/movie-scraper-villas');
+                console.log('2. /api/search?query=<movie_title>');
+                console.log('3. /api/stream-proxy?url=<movie_url> (returns HTML player)');
+                console.log('4. /api/playwright-scrape?url=<movie_url>');
                 
                 buttonElement.innerHTML = '❌ Error';
                 buttonElement.style.background = 'linear-gradient(135deg, #f44336 0%, #d32f2f 100%)';
