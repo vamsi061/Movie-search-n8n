@@ -414,17 +414,32 @@
                 // Debug: N8N API Response received
                 console.log('API Response Data:', JSON.stringify(data, null, 2));
 
-                if (data.results && data.results.length > 0) {
+                // Handle the new response format
+                let movies = [];
+                
+                if (Array.isArray(data)) {
+                    // Direct array of movies
+                    movies = data;
+                } else if (data.results && Array.isArray(data.results)) {
+                    // Wrapped in results property
+                    movies = data.results;
+                } else if (data.error) {
+                    showError(data.error + (data.message ? ': ' + data.message : ''));
+                    return;
+                }
+
+                if (movies && movies.length > 0) {
+                    // Sort movies by rank (lower rank = higher priority)
+                    movies.sort((a, b) => (a.rank || 999) - (b.rank || 999));
+                    
                     // Ensure all movie properties are preserved including streamingUrls
-                    const moviesWithSource = data.results.map(movie => ({
+                    const moviesWithSource = movies.map(movie => ({
                         ...movie,
                         source: movie.source || '5movierulz.villas',
                         streamingUrls: movie.streamingUrls || [] // Explicitly preserve streamingUrls
                     }));
                     
-                    displayResults(moviesWithSource, data.total || moviesWithSource.length, query, [`5MovieRulz (${moviesWithSource.length})`]);
-                } else if (data.error) {
-                    showError(data.error + (data.message ? ': ' + data.message : ''));
+                    displayResults(moviesWithSource, movies.length, query, [`5MovieRulz (${movies.length})`]);
                 } else {
                     // Debug: No results found
                     showNoResults();
@@ -486,9 +501,15 @@
         function createMovieCard(movie) {
             const posterUrl = movie.poster || 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMzAwIiBoZWlnaHQ9IjQwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMTAwJSIgaGVpZ2h0PSIxMDAlIiBmaWxsPSIjNjY3ZWVhIi8+PHRleHQgeD0iNTAlIiB5PSI1MCUiIGZvbnQtZmFtaWx5PSJBcmlhbCwgc2Fucy1zZXJpZiIgZm9udC1zaXplPSIxOCIgZmlsbD0iI2ZmZmZmZiIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZHk9Ii4zZW0iPk5vIFBvc3RlcjwvdGV4dD48L3N2Zz4=';
             
-            // Clean the main streaming URL exactly like working code
+            // Clean the main movie page URL
             const movieUrl = (movie.url || '#').toString().replace(/\s+/g, '').replace(/\n/g, '').replace(/\r/g, '').trim();
             const cleanTitle = movie.title || 'Unknown Movie';
+            
+            // Add rank indicator for top results
+            const rankBadge = movie.rank && movie.rank <= 3 ? 
+                `<div style="position: absolute; top: 10px; left: 10px; background: linear-gradient(135deg, #ff6b6b, #ee5a24); color: white; padding: 4px 8px; border-radius: 12px; font-size: 12px; font-weight: 600; box-shadow: 0 2px 4px rgba(0,0,0,0.3);">
+                    #${movie.rank} ${movie.rank === 1 ? '🏆' : movie.rank === 2 ? '🥈' : '🥉'}
+                </div>` : '';
 
             const card = document.createElement('div');
             card.className = 'movie-card';
@@ -498,10 +519,11 @@
                     <img src="${posterUrl}" 
                          alt="${cleanTitle}" 
                          onerror="this.onerror=null; this.src='data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMzAwIiBoZWlnaHQ9IjQwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMTAwJSIgaGVpZ2h0PSIxMDAlIiBmaWxsPSIjNjY3ZWVhIi8+PHRleHQgeD0iNTAlIiB5PSI1MCUiIGZvbnQtZmFtaWx5PSJBcmlhbCwgc2Fucy1zZXJpZiIgZm9udC1zaXplPSIxOCIgZmlsbD0iI2ZmZmZmZiIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZHk9Ii4zZW0iPk5vIFBvc3RlcjwvdGV4dD48L3N2Zz4=';">
+                    ${rankBadge}
                     <div class="watch-overlay">
                         <i class="fas fa-play"></i> Watch Now
                     </div>
-                    ${movie.genre ? `<div class="movie-language">${movie.genre}</div>` : ''}
+                    ${movie.language ? `<div class="movie-language">${movie.language}</div>` : ''}
                 </div>
                 <div class="movie-info">
                     <h3 class="movie-title">${cleanTitle}</h3>
@@ -514,54 +536,89 @@
                     <div class="streaming-links">
                         <div class="streaming-title">🎬 Watch Online:</div>
                         ${movie.streamingUrls && movie.streamingUrls.length > 0 
-                            ? movie.streamingUrls.map((stream, index) => {
-                                const cleanUrl = stream.url.toString().replace(/[\r\n\t]/g, '').trim();
-                                
-                                let serviceName = '📺 Stream';
-                                let serviceClass = 'priority-' + stream.priority;
-                                
-                                switch(stream.service) {
-                                    case 'uperbox':
-                                        serviceName = '🎬 Uperbox';
-                                        serviceClass = 'priority-1';
-                                        break;
-                                    case 'netutv':
-                                        serviceName = '📺 NetuTV';
-                                        serviceClass = 'priority-1';
-                                        break;
-                                    case 'torrent':
-                                        serviceName = '🧲 Torrent';
-                                        serviceClass = 'priority-2';
-                                        break;
-                                    case 'streamlare':
-                                        serviceName = '🎬 StreamLare';
-                                        serviceClass = 'priority-3';
-                                        break;
-                                    case 'doodstream':
-                                        serviceName = '📺 DoodStream';
-                                        serviceClass = 'priority-2';
-                                        break;
-                                    case 'mixdrop':
-                                        serviceName = '📺 MixDrop';
-                                        serviceClass = 'priority-2';
-                                        break;
-                                    case 'streamtape':
-                                    case 'generic':
+                            ? movie.streamingUrls
+                                .sort((a, b) => (a.priority || 999) - (b.priority || 999)) // Sort by priority
+                                .map((stream, index) => {
+                                    // Handle both string URLs and object URLs
+                                    const streamUrl = typeof stream === 'string' ? stream : (stream.url || stream);
+                                    const cleanUrl = streamUrl.toString().replace(/[\r\n\t]/g, '').trim();
+                                    
+                                    // Extract service info
+                                    const service = stream.service || 'generic';
+                                    const quality = stream.quality || 'HD';
+                                    const priority = stream.priority || 5;
+                                    
+                                    let serviceName = '📺 Stream';
+                                    let serviceClass = `priority-${Math.min(priority, 3)}`;
+                                    
+                                    // Detect service from URL if not provided
+                                    const urlLower = cleanUrl.toLowerCase();
+                                    if (urlLower.includes('streamtape')) {
                                         serviceName = '📺 StreamTape';
                                         serviceClass = 'priority-2';
-                                        break;
-                                    default:
-                                        serviceName = '📺 Stream';
-                                }
-                                
-                                return `<a href="${cleanUrl}" target="_blank" onclick="event.stopPropagation(); setProperContext('${cleanUrl}')" class="stream-link ${serviceClass}" style="margin: 5px 5px 5px 0; display: inline-block;">
-                                    ${serviceName} (${stream.quality})
-                                </a>`;
-                              }).join('')
+                                    } else if (urlLower.includes('doodstream') || urlLower.includes('dood.')) {
+                                        serviceName = '📺 DoodStream';
+                                        serviceClass = 'priority-2';
+                                    } else if (urlLower.includes('mixdrop')) {
+                                        serviceName = '📺 MixDrop';
+                                        serviceClass = 'priority-2';
+                                    } else if (urlLower.includes('streamlare')) {
+                                        serviceName = '🎬 StreamLare';
+                                        serviceClass = 'priority-3';
+                                    } else if (urlLower.includes('uperbox')) {
+                                        serviceName = '🎬 Uperbox';
+                                        serviceClass = 'priority-1';
+                                    } else if (urlLower.includes('netutv')) {
+                                        serviceName = '📺 NetuTV';
+                                        serviceClass = 'priority-1';
+                                    } else if (urlLower.includes('torrent') || urlLower.includes('.torrent')) {
+                                        serviceName = '🧲 Torrent';
+                                        serviceClass = 'priority-2';
+                                    } else {
+                                        // Use provided service name if available
+                                        switch(service.toLowerCase()) {
+                                            case 'uperbox':
+                                                serviceName = '🎬 Uperbox';
+                                                serviceClass = 'priority-1';
+                                                break;
+                                            case 'netutv':
+                                                serviceName = '📺 NetuTV';
+                                                serviceClass = 'priority-1';
+                                                break;
+                                            case 'torrent':
+                                                serviceName = '🧲 Torrent';
+                                                serviceClass = 'priority-2';
+                                                break;
+                                            case 'streamlare':
+                                                serviceName = '🎬 StreamLare';
+                                                serviceClass = 'priority-3';
+                                                break;
+                                            case 'doodstream':
+                                                serviceName = '📺 DoodStream';
+                                                serviceClass = 'priority-2';
+                                                break;
+                                            case 'mixdrop':
+                                                serviceName = '📺 MixDrop';
+                                                serviceClass = 'priority-2';
+                                                break;
+                                            case 'streamtape':
+                                            case 'generic':
+                                                serviceName = '📺 StreamTape';
+                                                serviceClass = 'priority-2';
+                                                break;
+                                            default:
+                                                serviceName = `📺 ${service}`;
+                                        }
+                                    }
+                                    
+                                    return `<a href="${cleanUrl}" target="_blank" onclick="event.stopPropagation(); setProperContext('${cleanUrl}')" class="stream-link ${serviceClass}" style="margin: 5px 5px 5px 0; display: inline-block;">
+                                        ${serviceName} (${quality})
+                                    </a>`;
+                                }).join('')
                             : '<span style="color: #999; font-size: 0.85rem;">No streaming links available</span>'
                         }
                         <br>
-                        <a href="${movie.moviePageUrl || movie.originalUrl || '#'}" target="_blank" class="movie-page-btn" onclick="event.stopPropagation()">
+                        <a href="${movie.url || movie.moviePageUrl || movie.originalUrl || '#'}" target="_blank" class="movie-page-btn" onclick="event.stopPropagation()">
                             🎬 Movie Page
                         </a>
                     </div>
