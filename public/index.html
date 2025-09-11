@@ -615,12 +615,16 @@
                                         ${serviceName} (${quality})
                                     </a>`;
                                 }).join('')
-                            : '<span style="color: #999; font-size: 0.85rem;">No streaming links available</span>'
+                            : `<div style="color: #666; font-size: 0.9rem; margin-bottom: 10px;">
+                                <i class="fas fa-info-circle"></i> Streaming links available on movie page
+                               </div>`
                         }
-                        <br>
                         <a href="${movie.url || movie.moviePageUrl || movie.originalUrl || '#'}" target="_blank" class="movie-page-btn" onclick="event.stopPropagation()">
-                            🎬 Movie Page
+                            🎬 Watch Movie
                         </a>
+                        <button class="movie-page-btn" style="background: linear-gradient(135deg, #2196F3 0%, #1976D2 100%); margin-left: 10px;" onclick="event.stopPropagation(); fetchStreamingLinks('${movie.url}', this)" title="Fetch streaming links for this movie">
+                            🔗 Get Streams
+                        </button>
                     </div>
                 </div>
             `;
@@ -637,6 +641,91 @@
 
         // Auto-focus search input
         searchInput.focus();
+
+        // Function to fetch streaming links for a specific movie
+        async function fetchStreamingLinks(movieUrl, buttonElement) {
+            const originalText = buttonElement.innerHTML;
+            buttonElement.innerHTML = '⏳ Loading...';
+            buttonElement.disabled = true;
+            
+            try {
+                // You can replace this with your actual streaming links API endpoint
+                const response = await fetch(`/api/stream-proxy?url=${encodeURIComponent(movieUrl)}`, {
+                    method: 'GET',
+                    headers: {
+                        'Accept': 'application/json',
+                    }
+                });
+
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+
+                const data = await response.json();
+                
+                if (data.streamingUrls && data.streamingUrls.length > 0) {
+                    // Find the movie card and update streaming links
+                    const movieCard = buttonElement.closest('.movie-card');
+                    const streamingLinksDiv = movieCard.querySelector('.streaming-links');
+                    const streamingTitle = streamingLinksDiv.querySelector('.streaming-title');
+                    
+                    // Create streaming links HTML
+                    const streamingLinksHtml = data.streamingUrls
+                        .sort((a, b) => (a.priority || 999) - (b.priority || 999))
+                        .map(stream => {
+                            const cleanUrl = stream.url.toString().replace(/[\r\n\t]/g, '').trim();
+                            const service = stream.service || 'generic';
+                            const quality = stream.quality || 'HD';
+                            
+                            let serviceName = '📺 Stream';
+                            let serviceClass = `priority-${Math.min(stream.priority || 5, 3)}`;
+                            
+                            // Detect service from URL
+                            const urlLower = cleanUrl.toLowerCase();
+                            if (urlLower.includes('streamtape')) {
+                                serviceName = '📺 StreamTape';
+                                serviceClass = 'priority-2';
+                            } else if (urlLower.includes('doodstream') || urlLower.includes('dood.')) {
+                                serviceName = '📺 DoodStream';
+                                serviceClass = 'priority-2';
+                            } else if (urlLower.includes('mixdrop')) {
+                                serviceName = '📺 MixDrop';
+                                serviceClass = 'priority-2';
+                            } else if (urlLower.includes('streamlare')) {
+                                serviceName = '🎬 StreamLare';
+                                serviceClass = 'priority-3';
+                            }
+                            
+                            return `<a href="${cleanUrl}" target="_blank" onclick="event.stopPropagation(); setProperContext('${cleanUrl}')" class="stream-link ${serviceClass}" style="margin: 5px 5px 5px 0; display: inline-block;">
+                                ${serviceName} (${quality})
+                            </a>`;
+                        }).join('');
+                    
+                    // Update the streaming links section
+                    streamingTitle.nextElementSibling.innerHTML = streamingLinksHtml;
+                    
+                    buttonElement.innerHTML = '✅ Loaded';
+                    buttonElement.style.background = 'linear-gradient(135deg, #4CAF50 0%, #45a049 100%)';
+                    
+                } else {
+                    buttonElement.innerHTML = '❌ No Streams';
+                    buttonElement.style.background = 'linear-gradient(135deg, #f44336 0%, #d32f2f 100%)';
+                }
+                
+            } catch (error) {
+                console.error('Error fetching streaming links:', error);
+                buttonElement.innerHTML = '❌ Error';
+                buttonElement.style.background = 'linear-gradient(135deg, #f44336 0%, #d32f2f 100%)';
+            }
+            
+            // Re-enable button after 3 seconds
+            setTimeout(() => {
+                buttonElement.disabled = false;
+                if (buttonElement.innerHTML === '⏳ Loading...') {
+                    buttonElement.innerHTML = originalText;
+                }
+            }, 3000);
+        }
 
 
         // Set proper context before navigation (like main website does)
