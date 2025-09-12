@@ -33,8 +33,8 @@
 1. **Update the environment variable** in your Vercel project:
    - Go to your Vercel project settings
    - Add environment variable:
-     - `RENDER_PYTHON_SERVICE_URL`: `https://your-service-name.onrender.com/download`
-     - Replace `your-service-name` with your actual Render service name
+     - `RENDER_PYTHON_SERVICE_URL`: `https://movie-downloader-wior.onrender.com/download`
+   - Or use your custom service URL if different
 
 2. **Redeploy your Vercel project** to apply the changes
 
@@ -79,7 +79,7 @@ your-project/
 
 ### Vercel (Frontend)
 ```
-RENDER_PYTHON_SERVICE_URL=https://your-service-name.onrender.com/download
+RENDER_PYTHON_SERVICE_URL=https://movie-downloader-wior.onrender.com/download
 ```
 
 ### Render (Python Service)
