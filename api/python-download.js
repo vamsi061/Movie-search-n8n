@@ -10,19 +10,7 @@ export default async function handler(req, res) {
             return res.status(400).json({ error: 'Movie URL is required' });
         }
 
-        console.log('Download request received:', { movieUrl, title });
-
-        // Check if the URL is from ibomma (as per your requirement)
-        const isIbomma = movieUrl.toLowerCase().includes('ibomma') || 
-                        movieUrl.toLowerCase().includes('5movierulz') ||
-                        movieUrl.toLowerCase().includes('movierulz');
-
-        if (!isIbomma) {
-            return res.status(400).json({ 
-                error: 'Download is only supported for iBomma and MovieRulz sources',
-                message: 'This movie source is not supported for direct download'
-            });
-        }
+        console.log('Python download request received:', { movieUrl, title });
 
         // Set response headers for streaming
         res.setHeader('Content-Type', 'text/plain');
@@ -33,32 +21,32 @@ export default async function handler(req, res) {
         // Send initial response
         res.write(JSON.stringify({ 
             status: 'started', 
-            message: 'Connecting to N8N download service...',
+            message: 'Initializing Python video extractor...',
             movieUrl: movieUrl,
             title: title || 'Unknown Movie'
         }) + '\n');
 
-        // N8N webhook URL for movie download
-        const n8nDownloadUrl = 'https://n8n-instance-vnyx.onrender.com/webhook/movie-downloader';
+        // Render Python service URL (you'll need to deploy this)
+        const renderPythonUrl = process.env.RENDER_PYTHON_SERVICE_URL || 'https://your-python-service.onrender.com/download';
         
         res.write(JSON.stringify({ 
             status: 'info', 
-            message: 'Sending download request to N8N service...',
+            message: 'Connecting to Python extraction service...',
             timestamp: new Date().toISOString()
         }) + '\n');
 
-        // Prepare request payload
+        // Prepare request payload for Python service
         const requestPayload = {
-            movieUrl: movieUrl,
+            url: movieUrl,
             title: title || 'Unknown Movie',
-            action: 'download',
-            outputFormat: 'mp4'
+            download: true,
+            output_path: './downloads/'
         };
 
-        console.log('Sending to N8N:', JSON.stringify(requestPayload, null, 2));
+        console.log('Sending to Python service:', JSON.stringify(requestPayload, null, 2));
 
-        // Send download request to N8N
-        const downloadResponse = await fetch(n8nDownloadUrl, {
+        // Send download request to Python service
+        const downloadResponse = await fetch(renderPythonUrl, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -68,16 +56,16 @@ export default async function handler(req, res) {
         });
 
         if (!downloadResponse.ok) {
-            throw new Error(`N8N service responded with status: ${downloadResponse.status}`);
+            throw new Error(`Python service responded with status: ${downloadResponse.status}`);
         }
 
         res.write(JSON.stringify({ 
             status: 'info', 
-            message: 'N8N download service connected successfully',
+            message: 'Python extraction service connected successfully',
             timestamp: new Date().toISOString()
         }) + '\n');
 
-        // Handle streaming response from N8N
+        // Handle streaming response from Python service
         const reader = downloadResponse.body.getReader();
         const decoder = new TextDecoder();
 
@@ -114,7 +102,7 @@ export default async function handler(req, res) {
             // Send completion message
             res.write(JSON.stringify({
                 status: 'completed',
-                message: 'Download process completed',
+                message: 'Download process completed successfully',
                 timestamp: new Date().toISOString()
             }) + '\n');
             
@@ -138,7 +126,7 @@ export default async function handler(req, res) {
         res.end();
 
     } catch (error) {
-        console.error('Download API error:', error);
+        console.error('Python download API error:', error);
         
         if (!res.headersSent) {
             return res.status(500).json({ 
