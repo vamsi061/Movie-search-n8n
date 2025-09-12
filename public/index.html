@@ -751,8 +751,37 @@
                                 case 'completed':
                                     progressLine.innerHTML = `✅ <strong>${data.message}</strong>`;
                                     progressLine.style.color = '#4CAF50';
-                                    buttonElement.innerHTML = '✅ Downloaded';
-                                    buttonElement.style.background = 'linear-gradient(135deg, #4CAF50 0%, #45a049 100%)';
+                                    
+                                    // If we have a download URL, create a download link
+                                    if (data.downloadUrl) {
+                                        const downloadLink = document.createElement('a');
+                                        downloadLink.href = data.downloadUrl;
+                                        downloadLink.download = `${movieTitle}.${data.format || 'mp4'}`;
+                                        downloadLink.style.cssText = `
+                                            display: inline-block;
+                                            margin: 10px 5px 5px 0;
+                                            padding: 10px 20px;
+                                            background: linear-gradient(135deg, #4CAF50 0%, #45a049 100%);
+                                            color: white;
+                                            text-decoration: none;
+                                            border-radius: 8px;
+                                            font-weight: 600;
+                                        `;
+                                        downloadLink.innerHTML = `📥 Download ${data.quality}p ${data.format.toUpperCase()}`;
+                                        downloadLink.onclick = (e) => {
+                                            e.stopPropagation();
+                                            // Trigger download
+                                            downloadLink.click();
+                                        };
+                                        
+                                        progressDiv.appendChild(downloadLink);
+                                        
+                                        buttonElement.innerHTML = '✅ Ready to Download';
+                                        buttonElement.style.background = 'linear-gradient(135deg, #4CAF50 0%, #45a049 100%)';
+                                    } else {
+                                        buttonElement.innerHTML = '✅ Extracted';
+                                        buttonElement.style.background = 'linear-gradient(135deg, #4CAF50 0%, #45a049 100%)';
+                                    }
                                     buttonElement.disabled = false;
                                     break;
                                 case 'error':
