@@ -45,18 +45,25 @@ export default async function handler(req, res) {
 
         console.log('Sending to Python service:', JSON.stringify(requestPayload, null, 2));
 
-        // Send download request to Python service
+        // Send download request to Python service with timeout
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 60000); // 60 second timeout
+        
         const downloadResponse = await fetch(renderPythonUrl, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
-                'Accept': 'application/json',
+                'Accept': 'text/plain',
             },
-            body: JSON.stringify(requestPayload)
+            body: JSON.stringify(requestPayload),
+            signal: controller.signal
         });
 
+        clearTimeout(timeoutId);
+
         if (!downloadResponse.ok) {
-            throw new Error(`Python service responded with status: ${downloadResponse.status}`);
+            const errorText = await downloadResponse.text();
+            throw new Error(`Python service responded with status: ${downloadResponse.status} - ${errorText}`);
         }
 
         res.write(JSON.stringify({ 
@@ -128,7 +135,15 @@ export default async function handler(req, res) {
     } catch (error) {
         console.error('Python download API error:', error);
         
-        if (!res.headersSent) {
+        // Send error to client if streaming
+        if (res.headersSent) {
+            res.write(JSON.stringify({
+                status: 'error',
+                message: `Connection failed: ${error.message}`,
+                timestamp: new Date().toISOString()
+            }) + '\n');
+            res.end();
+        } else {
             return res.status(500).json({ 
                 error: 'Internal server error',
                 message: error.message 
