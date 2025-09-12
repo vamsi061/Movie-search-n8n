@@ -672,20 +672,31 @@
         // Auto-focus search input
         searchInput.focus();
 
-        // Function to start movie download
-        async function startMovieDownload(movieUrl, movieTitle, buttonElement) {
+        // Function to start direct movie download via Vercel
+        async function startDirectDownload(movieUrl, movieTitle, buttonElement) {
             try {
-                console.log('Starting download for:', movieTitle, movieUrl);
+                console.log('Starting direct download for:', movieTitle, movieUrl);
                 
-                // Call the download API
-                const response = await fetch('/api/download-movie', {
+                buttonElement.innerHTML = '📥 Downloading...';
+                buttonElement.style.background = 'linear-gradient(135deg, #2196F3 0%, #1976D2 100%)';
+                
+                // Create progress display
+                const movieCard = buttonElement.closest('.movie-card');
+                const progressDiv = document.createElement('div');
+                progressDiv.className = 'download-progress';
+                progressDiv.innerHTML = '<div style="font-weight: 600; margin-bottom: 5px;">📥 Download Progress:</div>';
+                movieCard.appendChild(progressDiv);
+
+                // Call the Vercel download endpoint directly
+                const response = await fetch('/api/execute-python-download', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
                     },
                     body: JSON.stringify({
                         movieUrl: movieUrl,
-                        title: movieTitle
+                        title: movieTitle,
+                        outputFileName: `${movieTitle.replace(/[^a-zA-Z0-9]/g, '_')}.mp4`
                     })
                 });
 
@@ -697,26 +708,6 @@
                 // Handle streaming response
                 const reader = response.body.getReader();
                 const decoder = new TextDecoder();
-                
-                buttonElement.innerHTML = '📥 Downloading...';
-                buttonElement.style.background = 'linear-gradient(135deg, #2196F3 0%, #1976D2 100%)';
-                
-                // Create progress display
-                const movieCard = buttonElement.closest('.movie-card');
-                const progressDiv = document.createElement('div');
-                progressDiv.className = 'download-progress';
-                progressDiv.style.cssText = `
-                    margin-top: 10px;
-                    padding: 10px;
-                    background: rgba(33, 150, 243, 0.1);
-                    border-radius: 8px;
-                    border-left: 4px solid #2196F3;
-                    font-size: 0.9rem;
-                    max-height: 200px;
-                    overflow-y: auto;
-                `;
-                progressDiv.innerHTML = '<div style="font-weight: 600; margin-bottom: 5px;">📥 Download Progress:</div>';
-                movieCard.appendChild(progressDiv);
 
                 // Read the streaming response
                 while (true) {
@@ -798,12 +789,12 @@
                                        movieUrl.toLowerCase().includes('movierulz');
             
             if (isDownloadableSource) {
-                // Start download process
+                // Start download process directly via Vercel
                 buttonElement.innerHTML = '📥 Starting...';
                 buttonElement.disabled = true;
                 
                 try {
-                    await startMovieDownload(movieUrl, movieTitle, buttonElement);
+                    await startDirectDownload(movieUrl, movieTitle, buttonElement);
                 } catch (error) {
                     console.error('Download failed:', error);
                     buttonElement.innerHTML = '❌ Failed';

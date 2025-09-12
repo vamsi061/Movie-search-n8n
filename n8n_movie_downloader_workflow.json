@@ -33,13 +33,22 @@
     },
     {
       "parameters": {
-        "language": "python",
-        "pythonCode": "import requests\nimport subprocess\nimport sys\nimport os\n\n# Get the movie data from the previous node\nmovie_url = _input.first()['json']['movieUrl']\ntitle = _input.first()['json']['title']\noutput_filename = _input.first()['json']['outputFileName']\n\nprint(f\"Starting download for: {title}\")\nprint(f\"URL: {movie_url}\")\nprint(f\"Output: {output_filename}\")\n\n# Download the Python script from GitHub\nscript_url = 'https://raw.githubusercontent.com/vamsi061/Movie-search-n8n/main/scripts/simple_video_extractor.py'\nresponse = requests.get(script_url)\n\nif response.status_code == 200:\n    # Save the script to a temporary file\n    script_path = '/tmp/simple_video_extractor.py'\n    with open(script_path, 'w') as f:\n        f.write(response.text)\n    \n    print(\"Script downloaded successfully\")\n    \n    # Execute the script\n    try:\n        result = subprocess.run([\n            sys.executable, script_path, \n            movie_url, \n            '--download', \n            '--output', output_filename\n        ], capture_output=True, text=True, timeout=300)\n        \n        stdout = result.stdout\n        stderr = result.stderr\n        exit_code = result.returncode\n        \n        print(f\"Script execution completed with exit code: {exit_code}\")\n        print(f\"STDOUT: {stdout}\")\n        if stderr:\n            print(f\"STDERR: {stderr}\")\n        \n        return {\n            'status': 'completed' if exit_code == 0 else 'error',\n            'exit_code': exit_code,\n            'stdout': stdout,\n            'stderr': stderr,\n            'movie_url': movie_url,\n            'title': title,\n            'output_filename': output_filename\n        }\n        \n    except subprocess.TimeoutExpired:\n        return {\n            'status': 'error',\n            'message': 'Download timeout after 5 minutes',\n            'movie_url': movie_url,\n            'title': title\n        }\n    except Exception as e:\n        return {\n            'status': 'error',\n            'message': f'Execution error: {str(e)}',\n            'movie_url': movie_url,\n            'title': title\n        }\nelse:\n    return {\n        'status': 'error',\n        'message': f'Failed to download script from GitHub: {response.status_code}',\n        'movie_url': movie_url,\n        'title': title\n    }"
+        "url": "https://movie-search-n8n.vercel.app/api/execute-python-download",
+        "method": "POST",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ $json }}",
+        "options": {
+          "timeout": 600000,
+          "redirect": {
+            "redirect": {}
+          }
+        }
       },
       "id": "b2c3d4e5-f6g7-8901-bcde-f23456789012",
       "name": "Execute Python Download",
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
       "position": [
         680,
         300
