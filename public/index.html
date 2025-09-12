@@ -306,6 +306,36 @@
             font-size: 1.1rem;
         }
 
+        .download-progress {
+            margin-top: 10px;
+            padding: 10px;
+            background: rgba(33, 150, 243, 0.1);
+            border-radius: 8px;
+            border-left: 4px solid #2196F3;
+            font-size: 0.9rem;
+            max-height: 200px;
+            overflow-y: auto;
+            font-family: 'Courier New', monospace;
+        }
+
+        .download-progress::-webkit-scrollbar {
+            width: 6px;
+        }
+
+        .download-progress::-webkit-scrollbar-track {
+            background: rgba(0,0,0,0.1);
+            border-radius: 3px;
+        }
+
+        .download-progress::-webkit-scrollbar-thumb {
+            background: rgba(33, 150, 243, 0.5);
+            border-radius: 3px;
+        }
+
+        .download-progress::-webkit-scrollbar-thumb:hover {
+            background: rgba(33, 150, 243, 0.7);
+        }
+
         @media (max-width: 768px) {
             .container {
                 padding: 10px;
@@ -642,9 +672,155 @@
         // Auto-focus search input
         searchInput.focus();
 
-        // Function to fetch streaming links for a specific movie
+        // Function to start movie download
+        async function startMovieDownload(movieUrl, movieTitle, buttonElement) {
+            try {
+                console.log('Starting download for:', movieTitle, movieUrl);
+                
+                // Call the download API
+                const response = await fetch('/api/download-movie', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        movieUrl: movieUrl,
+                        title: movieTitle
+                    })
+                });
+
+                if (!response.ok) {
+                    const errorData = await response.json();
+                    throw new Error(errorData.message || `HTTP ${response.status}`);
+                }
+
+                // Handle streaming response
+                const reader = response.body.getReader();
+                const decoder = new TextDecoder();
+                
+                buttonElement.innerHTML = '📥 Downloading...';
+                buttonElement.style.background = 'linear-gradient(135deg, #2196F3 0%, #1976D2 100%)';
+                
+                // Create progress display
+                const movieCard = buttonElement.closest('.movie-card');
+                const progressDiv = document.createElement('div');
+                progressDiv.className = 'download-progress';
+                progressDiv.style.cssText = `
+                    margin-top: 10px;
+                    padding: 10px;
+                    background: rgba(33, 150, 243, 0.1);
+                    border-radius: 8px;
+                    border-left: 4px solid #2196F3;
+                    font-size: 0.9rem;
+                    max-height: 200px;
+                    overflow-y: auto;
+                `;
+                progressDiv.innerHTML = '<div style="font-weight: 600; margin-bottom: 5px;">📥 Download Progress:</div>';
+                movieCard.appendChild(progressDiv);
+
+                // Read the streaming response
+                while (true) {
+                    const { done, value } = await reader.read();
+                    
+                    if (done) break;
+                    
+                    const chunk = decoder.decode(value, { stream: true });
+                    const lines = chunk.split('\n').filter(line => line.trim());
+                    
+                    for (const line of lines) {
+                        try {
+                            const data = JSON.parse(line);
+                            console.log('Download progress:', data);
+                            
+                            // Update progress display
+                            const progressLine = document.createElement('div');
+                            progressLine.style.cssText = 'margin: 2px 0; font-size: 0.85rem;';
+                            
+                            switch (data.status) {
+                                case 'started':
+                                    progressLine.innerHTML = `🚀 <strong>${data.message}</strong>`;
+                                    progressLine.style.color = '#2196F3';
+                                    break;
+                                case 'progress':
+                                    progressLine.innerHTML = `📊 ${data.message}`;
+                                    progressLine.style.color = '#4CAF50';
+                                    
+                                    // Update button with progress if available
+                                    if (data.message.includes('%')) {
+                                        const percentMatch = data.message.match(/(\d+\.?\d*)%/);
+                                        if (percentMatch) {
+                                            buttonElement.innerHTML = `📥 ${percentMatch[1]}%`;
+                                        }
+                                    }
+                                    break;
+                                case 'info':
+                                    progressLine.innerHTML = `ℹ️ ${data.message}`;
+                                    progressLine.style.color = '#FF9800';
+                                    break;
+                                case 'completed':
+                                    progressLine.innerHTML = `✅ <strong>${data.message}</strong>`;
+                                    progressLine.style.color = '#4CAF50';
+                                    buttonElement.innerHTML = '✅ Downloaded';
+                                    buttonElement.style.background = 'linear-gradient(135deg, #4CAF50 0%, #45a049 100%)';
+                                    buttonElement.disabled = false;
+                                    break;
+                                case 'error':
+                                    progressLine.innerHTML = `❌ <strong>${data.message}</strong>`;
+                                    progressLine.style.color = '#f44336';
+                                    buttonElement.innerHTML = '❌ Failed';
+                                    buttonElement.style.background = 'linear-gradient(135deg, #f44336 0%, #d32f2f 100%)';
+                                    throw new Error(data.message);
+                            }
+                            
+                            progressDiv.appendChild(progressLine);
+                            progressDiv.scrollTop = progressDiv.scrollHeight;
+                            
+                        } catch (parseError) {
+                            console.log('Non-JSON response:', line);
+                        }
+                    }
+                }
+
+            } catch (error) {
+                console.error('Download error:', error);
+                throw error;
+            }
+        }
+
+        // Function to download a specific movie
         async function fetchStreamingLinks(movieUrl, buttonElement) {
             const originalText = buttonElement.innerHTML;
+            const movieTitle = buttonElement.closest('.movie-card').querySelector('.movie-title').textContent;
+            
+            // Check if this is an iBomma or MovieRulz source
+            const isDownloadableSource = movieUrl.toLowerCase().includes('ibomma') || 
+                                       movieUrl.toLowerCase().includes('5movierulz') ||
+                                       movieUrl.toLowerCase().includes('movierulz');
+            
+            if (isDownloadableSource) {
+                // Start download process
+                buttonElement.innerHTML = '📥 Starting...';
+                buttonElement.disabled = true;
+                
+                try {
+                    await startMovieDownload(movieUrl, movieTitle, buttonElement);
+                } catch (error) {
+                    console.error('Download failed:', error);
+                    buttonElement.innerHTML = '❌ Failed';
+                    buttonElement.style.background = 'linear-gradient(135deg, #f44336 0%, #d32f2f 100%)';
+                    buttonElement.title = `Download failed: ${error.message}`;
+                    
+                    setTimeout(() => {
+                        buttonElement.innerHTML = originalText;
+                        buttonElement.disabled = false;
+                        buttonElement.style.background = 'linear-gradient(135deg, #FF6B35 0%, #F7931E 100%)';
+                        buttonElement.title = 'Download this movie';
+                    }, 3000);
+                }
+                return;
+            }
+            
+            // Original streaming links functionality for non-downloadable sources
             buttonElement.innerHTML = '⏳ Loading...';
             buttonElement.disabled = true;
             
