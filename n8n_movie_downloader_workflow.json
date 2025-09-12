@@ -33,10 +33,8 @@
     },
     {
       "parameters": {
-        "command": "cd /Users/vamsi/Desktop/Movie_Agent/github_dir/video_extraction && python3 simple_video_extractor.py \"{{ $json.movieUrl }}\" --download --output \"{{ $json.outputFileName }}\"",
-        "options": {
-          "cwd": "/Users/vamsi/Desktop/Movie_Agent/github_dir/video_extraction/"
-        }
+        "command": "cd /tmp && wget -O simple_video_extractor.py https://raw.githubusercontent.com/vamsi061/Movie-search-n8n/main/scripts/simple_video_extractor.py && python3 simple_video_extractor.py \"{{ $json.movieUrl }}\" --download --output \"{{ $json.outputFileName }}\"",
+        "options": {}
       },
       "id": "b2c3d4e5-f6g7-8901-bcde-f23456789012",
       "name": "Execute Python Download",
