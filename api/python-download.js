@@ -63,6 +63,9 @@ export default async function handler(req, res) {
 
         if (!downloadResponse.ok) {
             const errorText = await downloadResponse.text();
+            if (downloadResponse.status === 502) {
+                throw new Error(`Render service is sleeping or crashed (502). Please check Render dashboard and restart the service.`);
+            }
             throw new Error(`Python service responded with status: ${downloadResponse.status} - ${errorText}`);
         }
 
