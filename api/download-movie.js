@@ -47,6 +47,16 @@ export default async function handler(req, res) {
             timestamp: new Date().toISOString()
         }) + '\n');
 
+        // Prepare request payload
+        const requestPayload = {
+            movieUrl: movieUrl,
+            title: title || 'Unknown Movie',
+            action: 'download',
+            outputFormat: 'mp4'
+        };
+
+        console.log('Sending to N8N:', JSON.stringify(requestPayload, null, 2));
+
         // Send download request to N8N
         const downloadResponse = await fetch(n8nDownloadUrl, {
             method: 'POST',
@@ -54,12 +64,7 @@ export default async function handler(req, res) {
                 'Content-Type': 'application/json',
                 'Accept': 'application/json',
             },
-            body: JSON.stringify({
-                movieUrl: movieUrl,
-                title: title || 'Unknown Movie',
-                action: 'download',
-                outputFormat: 'mp4'
-            })
+            body: JSON.stringify(requestPayload)
         });
 
         if (!downloadResponse.ok) {
