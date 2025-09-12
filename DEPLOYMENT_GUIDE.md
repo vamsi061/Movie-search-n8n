@@ -12,13 +12,13 @@
 
 1. **Create a new Render account** at https://render.com
 2. **Create a new Web Service** from the Render dashboard
-3. **Connect your GitHub repository** containing the `render-python-service` folder
+3. **Connect the Movie Downloader repository**: https://github.com/vamsi061/Movie-downloader
 4. **Configure the service:**
    - **Name**: `movie-python-downloader`
    - **Environment**: `Python 3`
    - **Build Command**: `pip install -r requirements.txt`
    - **Start Command**: `python app.py`
-   - **Root Directory**: `render-python-service`
+   - **Root Directory**: Leave empty (uses repository root)
 
 5. **Add Environment Variables:**
    - `PORT`: `5000` (automatically set by Render)
@@ -46,7 +46,7 @@ your-project/
 │   ├── python-download.js          # New download API endpoint
 │   ├── search.js                   # Existing search functionality
 │   └── ...
-├── render-python-service/          # New Python service
+├── Python Service Repository:      # https://github.com/vamsi061/Movie-downloader
 │   ├── app.py                      # Flask application
 │   ├── simple_video_extractor.py   # Video extraction script
 │   ├── requirements.txt            # Python dependencies

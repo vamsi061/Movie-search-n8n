@@ -26,8 +26,8 @@ export default async function handler(req, res) {
             title: title || 'Unknown Movie'
         }) + '\n');
 
-        // Render Python service URL (you'll need to deploy this)
-        const renderPythonUrl = process.env.RENDER_PYTHON_SERVICE_URL || 'https://your-python-service.onrender.com/download';
+        // Render Python service URL - Deploy from: https://github.com/vamsi061/Movie-downloader
+        const renderPythonUrl = process.env.RENDER_PYTHON_SERVICE_URL || 'https://movie-downloader-api.onrender.com/download';
         
         res.write(JSON.stringify({ 
             status: 'info', 
