@@ -622,8 +622,8 @@
                         <a href="${movie.url || movie.moviePageUrl || movie.originalUrl || '#'}" target="_blank" class="movie-page-btn" onclick="event.stopPropagation()">
                             🎬 Watch Movie
                         </a>
-                        <button class="movie-page-btn" style="background: linear-gradient(135deg, #2196F3 0%, #1976D2 100%); margin-left: 10px;" onclick="event.stopPropagation(); fetchStreamingLinks('${movie.url}', this)" title="Fetch streaming links for this movie">
-                            🔗 Get Streams
+                        <button class="movie-page-btn" style="background: linear-gradient(135deg, #FF6B35 0%, #F7931E 100%); margin-left: 10px;" onclick="event.stopPropagation(); fetchStreamingLinks('${movie.url}', this)" title="Download this movie">
+                            📥 Download
                         </button>
                     </div>
                 </div>
@@ -648,6 +648,24 @@
             buttonElement.innerHTML = '⏳ Loading...';
             buttonElement.disabled = true;
             
+            // Test mode - hold Shift while clicking to use sample data
+            if (event && event.shiftKey) {
+                console.log('🧪 Test mode activated - using sample streaming links');
+                setTimeout(() => {
+                    const sampleData = {
+                        streamingUrls: [
+                            "https://streamtape.com/v/rVVBAZwjQWyty8v",
+                            "https://doodstream.com/e/sample123",
+                            "https://mixdrop.co/f/sample456"
+                        ],
+                        quality: "HDRip"
+                    };
+                    
+                    displayStreamingLinks(sampleData, buttonElement);
+                }, 1000);
+                return;
+            }
+            
             try {
                 // Try different possible endpoints for fetching streaming links
                 let response;
@@ -671,7 +689,21 @@
                     });
                     
                     if (response.ok) {
-                        data = await response.json();
+                        // Check if response has content
+                        const responseText = await response.text();
+                        console.log('N8N Raw Response:', responseText);
+                        
+                        if (!responseText || responseText.trim() === '') {
+                            throw new Error('N8N returned empty response');
+                        }
+                        
+                        try {
+                            data = JSON.parse(responseText);
+                        } catch (parseError) {
+                            console.error('N8N JSON Parse Error:', parseError);
+                            console.error('Response content:', responseText.substring(0, 500));
+                            throw new Error(`N8N returned invalid JSON: ${parseError.message}`);
+                        }
                         
                         // Handle N8N response format
                         let movies = Array.isArray(data) ? data : (data.results || []);
@@ -680,10 +712,13 @@
                         if (targetMovie && targetMovie.streamingUrls && targetMovie.streamingUrls.length > 0) {
                             data = targetMovie;
                         } else {
+                            console.log('Available movies in N8N response:', movies.map(m => ({title: m.title, url: m.url, hasStreams: !!m.streamingUrls})));
                             throw new Error('Movie not found with streaming URLs in N8N response');
                         }
                     } else {
-                        throw new Error(`N8N webhook failed with status: ${response.status}`);
+                        const errorText = await response.text();
+                        console.error('N8N Error Response:', errorText);
+                        throw new Error(`N8N webhook failed with status: ${response.status} - ${errorText}`);
                     }
                 } catch (n8nError) {
                     console.log('N8N direct call failed:', n8nError.message);
