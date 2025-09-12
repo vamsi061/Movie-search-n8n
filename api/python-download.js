@@ -45,15 +45,16 @@ export default async function handler(req, res) {
 
         console.log('Sending to Python service:', JSON.stringify(requestPayload, null, 2));
 
-        // Send download request to Python service with timeout
+        // Send download request to Python service with longer timeout
         const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 60000); // 60 second timeout
+        const timeoutId = setTimeout(() => controller.abort(), 120000); // 2 minute timeout
         
         const downloadResponse = await fetch(renderPythonUrl, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
                 'Accept': 'text/plain',
+                'Connection': 'keep-alive',
             },
             body: JSON.stringify(requestPayload),
             signal: controller.signal
