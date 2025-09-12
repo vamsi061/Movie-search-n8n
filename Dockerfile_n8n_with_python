@@ -1,0 +1,50 @@
+# N8N Dockerfile with Python3 and video extraction dependencies
+FROM n8nio/n8n:latest
+
+# Switch to root user to install packages
+USER root
+
+# Update package list and install Python3, pip, and other dependencies
+RUN apk update && \
+    apk add --no-cache \
+    python3 \
+    py3-pip \
+    python3-dev \
+    gcc \
+    musl-dev \
+    libffi-dev \
+    openssl-dev \
+    wget \
+    curl \
+    git \
+    ffmpeg \
+    && ln -sf python3 /usr/bin/python
+
+# Install Python packages for video extraction
+RUN pip3 install --no-cache-dir \
+    requests \
+    yt-dlp \
+    beautifulsoup4 \
+    lxml \
+    selenium \
+    urllib3 \
+    certifi
+
+# Create a directory for scripts
+RUN mkdir -p /app/scripts
+
+# Set proper permissions
+RUN chown -R node:node /app
+
+# Switch back to node user
+USER node
+
+# Set environment variables
+ENV PYTHONPATH=/app/scripts
+ENV PATH="/usr/local/bin:$PATH"
+
+# Expose the default N8N port
+EXPOSE 5678
+
+# Start N8N
+CMD ["n8n"]
