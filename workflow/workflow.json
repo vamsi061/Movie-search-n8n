@@ -1,0 +1,585 @@
+{
+  "name": "My workflow",
+  "nodes": [
+    {
+      "parameters": {},
+      "id": "5d4cf162-b92e-4037-b4dd-3682466ebb02",
+      "name": "Merge Results",
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 2.1,
+      "position": [
+        288,
+        64
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Parse ibomma search results\nconst html = $json.data;\nconst query = $node[\"Extract Parameters\"].json.query.toLowerCase();\n\nif (!html) {\n  return [{ error: 'No HTML data received from ibomma' }];\n}\n\nconsole.log(`Parsing ibomma results for: ${query}`);\n\nconst movies = [];\nconst baseUrl = 'https://search_x.ibomma.foo';\n\ntry {\n  const movieElementPatterns = [\n    /<div[^>]*class=\"[^\"]*(?:movie|film|item|card|post|entry|result)[^\"]*\"[^>]*>([\\s\\S]*?)<\\/div>/gi,\n    /<article[^>]*>([\\s\\S]*?)<\\/article>/gi,\n    /<li[^>]*>([\\s\\S]*?)<\\/li>/gi,\n    /<div[^>]*class=\"[^\"]*\"[^>]*>([\\s\\S]*?)<\\/div>/gi\n  ];\n  \n  let movieMatches = [];\n  for (const pattern of movieElementPatterns) {\n    movieMatches = [...html.matchAll(pattern)];\n    if (movieMatches.length > 0) break;\n  }\n  \n  console.log(`Found ${movieMatches.length} movie elements`);\n  \n  for (let i = 0; i < movieMatches.length; i++) {\n    const movieHtml = movieMatches[i][1] || movieMatches[i][0];\n    \n    const elementText = movieHtml.toLowerCase();\n    if (!elementText.includes(query) && query.length >= 3) {\n      continue;\n    }\n    \n    const linkMatches = [...movieHtml.matchAll(/<a[^>]*href=\"([^\"]+)\"[^>]*>/gi)];\n    \n    for (const linkMatch of linkMatches) {\n      const href = linkMatch[1];\n      if (href && !href.startsWith('#') && !href.startsWith('javascript:')) {\n        \n        const fullUrl = href.startsWith('http') ? href : baseUrl + (href.startsWith('/') ? '' : '/') + href;\n        \n        if (!movies.some(m => m.url === fullUrl)) {\n          let title = query.charAt(0).toUpperCase() + query.slice(1);\n          let year = '';\n          \n          // Extract title from URL\n          try {\n            const urlParts = fullUrl.split('/');\n            const lastPart = urlParts[urlParts.length - 1];\n            if (lastPart && lastPart.includes('-')) {\n              const titleParts = lastPart.split('-');\n              if (titleParts.length > 0) {\n                title = titleParts[0].replace(/[_]/g, ' ').trim();\n                title = title.charAt(0).toUpperCase() + title.slice(1);\n              }\n              \n              for (const part of titleParts) {\n                if (/^\\d{4}$/.test(part)) {\n                  year = part;\n                  break;\n                }\n              }\n            }\n          } catch (e) {}\n          \n          movies.push({\n            title: title,\n            year: year,\n            language: 'Telugu',\n            poster: '',\n            url: fullUrl,\n            source: 'ibomma.foo',\n            rank: movies.length + 1\n          });\n          \n          if (movies.length >= 3) break;\n        }\n      }\n    }\n    \n    if (movies.length >= 3) break;\n  }\n  \n  console.log(`Ibomma found ${movies.length} movies`);\n  return movies;\n  \n} catch (error) {\n  console.log('Ibomma parsing error:', error.message);\n  return [{ error: 'Ibomma parsing failed' }];\n}"
+      },
+      "id": "a1117823-0f14-46ee-af8d-472462323668",
+      "name": "Parse Ibomma",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        64,
+        192
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Parse movie search results from 5movierulz.chat - Fixed for n8n \"Run Once for Each Item\"\nconst html = $json.data;\nconst query = $node[\"Extract Parameters\"].json.query.toLowerCase();\n\nif (!html) {\n  return [{ error: 'No HTML data received' }];\n}\n\nconsole.log(`Parsing search results for query: ${query}`);\n\nconst movies = [];\nconst baseUrl = 'https://www.5movierulz.villas';\n\ntry {\n  // Look for film elements - this is the key selector from working code\n  const filmElementPattern = /<div[^>]*class=\"[^\"]*film[^\"]*\"[^>]*>([\\s\\S]*?)<\\/div>/gi;\n  const filmMatches = [...html.matchAll(filmElementPattern)];\n  \n  console.log(`Found ${filmMatches.length} film elements`);\n  \n  for (let i = 0; i < filmMatches.length; i++) {\n    const filmHtml = filmMatches[i][1] || filmMatches[i][0];\n    \n    try {\n      // Check if this film element contains our query\n      if (!filmHtml.toLowerCase().includes(query)) {\n        continue;\n      }\n      \n      console.log(`Processing film element ${i+1} (contains '${query}')`);\n      \n      // Extract all links from this film element\n      const linkPattern = /<a[^>]*href=\"([^\"]+)\"[^>]*>/gi;\n      const linkMatches = [...filmHtml.matchAll(linkPattern)];\n      \n      // Extract all images from this film element\n      const imgPattern = /<img[^>]*src=\"([^\"]+)\"[^>]*(?:alt=\"([^\"]*)\"|[^>]*)>/gi;\n      const imgMatches = [...filmHtml.matchAll(imgPattern)];\n      \n      // Get all text content to find full titles\n      const textContent = filmHtml.replace(/<[^>]*>/g, ' ').replace(/\\s+/g, ' ').trim();\n      const textLines = textContent.split('\\n').map(line => line.trim()).filter(line => line.length > 0);\n      \n      // Process each link\n      for (let linkIdx = 0; linkIdx < linkMatches.length; linkIdx++) {\n        const linkHref = linkMatches[linkIdx][1];\n        if (!linkHref) continue;\n        \n        let movieTitle = '';\n        let posterUrl = '';\n        \n        // Get corresponding image if available\n        if (linkIdx < imgMatches.length) {\n          const imgSrc = imgMatches[linkIdx][1];\n          const imgAlt = imgMatches[linkIdx][2] || '';\n          \n          if (imgSrc && !imgSrc.startsWith('data:')) {\n            posterUrl = imgSrc.startsWith('http') ? imgSrc : baseUrl + (imgSrc.startsWith('/') ? imgSrc : '/' + imgSrc);\n          }\n          \n          if (imgAlt) {\n            movieTitle = imgAlt;\n          }\n        }\n        \n        // Try to find full title from text content\n        if (!movieTitle) {\n          for (const line of textLines) {\n            const lineLower = line.toLowerCase();\n            // Look for lines that contain query and movie indicators\n            if (lineLower.includes(query) && \n                (line.match(/\\b(19|20)\\d{2}\\b/) || \n                 lineLower.includes('hdrip') || \n                 lineLower.includes('brrip') || \n                 lineLower.includes('movie') || \n                 lineLower.includes('watch'))) {\n              movieTitle = line;\n              console.log(`Found full title: ${movieTitle}`);\n              break;\n            }\n          }\n        }\n        \n        // Fallback: extract from URL\n        if (!movieTitle) {\n          const urlParts = linkHref.split('/');\n          for (const part of urlParts) {\n            if (part.toLowerCase().includes(query)) {\n              movieTitle = part.replace(/-/g, ' ').replace(/movie watch online free/gi, '').trim();\n              break;\n            }\n          }\n        }\n        \n        // Enhance title based on URL patterns (from working code)\n        if (movieTitle && linkHref) {\n          const hrefLower = linkHref.toLowerCase();\n          \n          // Language detection\n          if (hrefLower.includes('malayalam')) {\n            movieTitle = movieTitle.replace(/Movie Watch Online Free/gi, 'Malayalam Movie');\n          } else if (hrefLower.includes('telugu')) {\n            movieTitle = movieTitle.replace(/Movie Watch Online Free/gi, 'Telugu Movie');\n          } else if (hrefLower.includes('tamil')) {\n            movieTitle = movieTitle.replace(/Movie Watch Online Free/gi, 'Tamil Movie');\n          } else if (hrefLower.includes('english')) {\n            movieTitle = movieTitle.replace(/Movie Watch Online Free/gi, 'English Movie');\n          } else if (hrefLower.includes('hindi')) {\n            movieTitle = movieTitle.replace(/Movie Watch Online Free/gi, 'Hindi Movie');\n          }\n          \n          // Specific movie patterns from working code\n          if (hrefLower.includes('rrr-2022')) {\n            movieTitle = 'RRR (2022) BRRip Telugu Movie';\n          } else if (hrefLower.includes('rrr-behind')) {\n            movieTitle = 'RRR: Behind & Beyond (2024) HDRip English Movie';\n          } else if (hrefLower.includes('grrr-2024-malayalam')) {\n            movieTitle = 'Grrr (2024) HDRip Malayalam Movie';\n          } else if (hrefLower.includes('grrr-2024-telugu')) {\n            movieTitle = 'Grrr (2024) HDRip Telugu Movie';\n          } else if (hrefLower.includes('grrr-2024-tamil')) {\n            movieTitle = 'Grrr (2024) HDRip Tamil Movie';\n          }\n        }\n        \n        // Final validation\n        if (movieTitle && movieTitle.toLowerCase().includes(query)) {\n          // Extract year\n          const yearMatch = movieTitle.match(/\\b(19|20)\\d{2}\\b/);\n          const year = yearMatch ? yearMatch[0] : 'N/A';\n          \n          // Make URL absolute\n          const moviePageUrl = linkHref.startsWith('http') ? linkHref : baseUrl + (linkHref.startsWith('/') ? linkHref : '/' + linkHref);\n          \n          // Extract quality and language\n          const qualityMatch = movieTitle.match(/\\b(HD|HDRip|BRRip|BluRay|DVDRip|CAM|TS|WebRip|720p|1080p|4K)\\b/i);\n          const languageMatch = movieTitle.match(/\\b(Hindi|English|Tamil|Telugu|Malayalam|Kannada|Bengali|Punjabi|Marathi)\\b/i);\n          \n          const movie = {\n            title: movieTitle,\n            url: moviePageUrl,\n            source: '5movierulz.villas',\n            year: year,\n            poster: posterUrl,\n            quality: qualityMatch ? qualityMatch[0] : 'Unknown',\n            language: languageMatch ? languageMatch[0] : 'Unknown',\n            rank: movies.length + 1\n          };\n          \n          // Check for duplicates\n          const isDuplicate = movies.some(existing => existing.url === movie.url);\n          if (!isDuplicate) {\n            movies.push(movie);\n            console.log(`✅ Added: ${movieTitle}`);\n          }\n        }\n      }\n      \n    } catch (e) {\n      console.log(`❌ Error processing film element ${i+1}: ${e.message}`);\n      continue;\n    }\n  }\n  \n  console.log(`🎯 Total unique movies found: ${movies.length}`);\n  \n  if (movies.length === 0) {\n    return [{ \n      error: 'No movies found in search results', \n      debug: {\n        htmlLength: html.length,\n        hasFilmElements: html.includes('class=\"film') || html.includes('class=\\\"film'),\n        queryUsed: query,\n        sampleHtml: html.substring(0, 1000)\n      }\n    }];\n  }\n  \n  // Return each movie as a separate item for processing\n  return movies;\n  \n} catch (error) {\n  const errorMessage = error instanceof Error ? error.message : String(error);\n  console.log('Error parsing movies:', errorMessage);\n  return [{ \n    error: 'Failed to parse movies: ' + errorMessage,\n    debug: {\n      htmlLength: html ? html.length : 0,\n      errorStack: error instanceof Error ? error.stack : 'No stack trace'\n    }\n  }];\n}"
+      },
+      "id": "7ea6eca0-b766-4b60-ac22-4c73e9550b53",
+      "name": "Parse Movierulz",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -832,
+        -48
+      ]
+    },
+    {
+      "parameters": {
+        "url": "https://search_x.ibomma.foo/search.html",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "search",
+              "value": "={{ $node['Extract Parameters'].json.query }}"
+            }
+          ]
+        },
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "User-Agent",
+              "value": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+            },
+            {
+              "name": "Accept",
+              "value": "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8"
+            },
+            {
+              "name": "Referer",
+              "value": "https://search_x.ibomma.foo/"
+            }
+          ]
+        },
+        "options": {
+          "response": {
+            "response": {
+              "neverError": true
+            }
+          },
+          "timeout": 30000
+        }
+      },
+      "id": "99c83f76-48a3-4d09-a84f-743a958e3ea3",
+      "name": "Fetch Ibomma",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [
+        -160,
+        192
+      ]
+    },
+    {
+      "parameters": {
+        "url": "https://www.5movierulz.villas/search_movies",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "s",
+              "value": "={{ $node['Extract Parameters'].json.query }}"
+            }
+          ]
+        },
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "User-Agent",
+              "value": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+            },
+            {
+              "name": "Accept",
+              "value": "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8"
+            },
+            {
+              "name": "Referer",
+              "value": "https://www.5movierulz.villas/"
+            }
+          ]
+        },
+        "options": {
+          "response": {
+            "response": {
+              "neverError": true
+            }
+          },
+          "timeout": 30000
+        }
+      },
+      "id": "3b9aaacd-262f-4636-b4e5-1550d7d860d8",
+      "name": "Fetch Movierulz",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [
+        -1056,
+        -48
+      ]
+    },
+    {
+      "parameters": {
+        "values": {
+          "string": [
+            {
+              "name": "query",
+              "value": "={{ $json.body.query }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "c5267500-a635-4f19-9c7f-7e7e1eb46aef",
+      "name": "Extract Parameters",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 1,
+      "position": [
+        -1280,
+        64
+      ]
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "movie-scraper-villas",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "b9fcb597-872f-488a-8a47-cba891ff06a6",
+      "name": "Webhook Trigger",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [
+        -1504,
+        80
+      ],
+      "webhookId": "movie-scraper-villas"
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [
+        -608,
+        -48
+      ],
+      "id": "936ac18d-e37f-4e2b-8d52-b23dded569fb",
+      "name": "Loop Over Items"
+    },
+    {
+      "parameters": {
+        "url": "={{ $json.url }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -384,
+        -112
+      ],
+      "id": "863a3172-3e28-4c0d-b3ee-79a7b19e4981",
+      "name": "HTTP Request"
+    },
+    {
+      "parameters": {
+        "jsCode": "const items = $input.all();\nconst results = [];\nlet count=-1\nfor (const item of items) {\n  const html = item.json.data || item.json.body || '';\n  count=count+1;\n  const movieData = {\n    title : $('Parse Movierulz').itemMatching(count),\n    streamingUrls: []\n  };\n\n  if (!html) {\n\n    results.push(movieData);\n    continue;\n  }\n\n  try {\n    // Specific streaming service domains to look for\n    const streamingDomains = [\n      'streamlare.com',\n      'streamtape.com', 'streamtape.to', 'streamtape.net',\n      'doodstream.com', 'doodstream.co', 'dood.to', 'dood.la', 'dood.ws',\n      'mixdrop.co', 'mixdrop.to', 'mixdrop.sx', 'mixdrop.bz',\n      'upstream.to',\n      'streamwish.to', 'streamwish.com',\n      'filelions.to', 'filelions.com',\n      'vtube.to',\n      'vidsrc.me', 'vidsrc.to',\n      'embedsito.com',\n      'vidcloud.co', 'vidcloud9.com',\n      'uptostream.com',\n      'fembed.com', 'fembed.net',\n      'gounlimited.to',\n      'streamango.com',\n      'rapidvideo.com',\n      'clipwatching.com',\n      'vcdnlare.com',\n      'netu.tv',\n      'jetload.net',\n      'videobin.co',\n      'supervideo.tv',\n      'speedvideo.net',\n      'uperbox.io',\n      'cavanhabg.com',\n      'droplares.cc',\n      'taylorplayer.com'\n    ];\n\n    const foundUrls = new Set();\n\n    // Create regex pattern for all streaming domains\n    const domainPattern = streamingDomains.map(domain => domain.replace('.', '\\\\.')).join('|');\n    const streamingRegex = new RegExp(`https?:\\/\\/(?:[^\\\\s\"'<>]*\\\\.)?(${domainPattern})[^\\\\s\"'<>]*`, 'gi');\n\n    // Extract URLs using the streaming domains pattern\n    const matches = html.match(streamingRegex);\n    if (matches) {\n      matches.forEach(url => {\n        if (url.length > 10) {\n          foundUrls.add(url);\n        }\n      });\n    }\n\n    // Look for iframe sources with streaming domains\n    const iframeMatches = html.match(/<iframe[^>]+src=[\"']([^\"']+)[\"'][^>]*>/gi);\n    if (iframeMatches) {\n      iframeMatches.forEach(iframe => {\n        const srcMatch = iframe.match(/src=[\"']([^\"']+)[\"']/i);\n        if (srcMatch && srcMatch[1]) {\n          let url = srcMatch[1];\n          if (url.startsWith('//')) {\n            url = 'https:' + url;\n          }\n          // Check if URL contains any of our streaming domains\n          if (streamingDomains.some(domain => url.toLowerCase().includes(domain))) {\n            foundUrls.add(url);\n          }\n        }\n      });\n    }\n\n    // Look for links (a tags) with streaming domains\n    const linkMatches = html.match(/<a[^>]+href=[\"']([^\"']+)[\"'][^>]*>/gi);\n    if (linkMatches) {\n      linkMatches.forEach(link => {\n        const hrefMatch = link.match(/href=[\"']([^\"']+)[\"']/i);\n        if (hrefMatch && hrefMatch[1]) {\n          let url = hrefMatch[1];\n          if (url.startsWith('//')) {\n            url = 'https:' + url;\n          }\n          // Check if URL contains any of our streaming domains\n          if (streamingDomains.some(domain => url.toLowerCase().includes(domain))) {\n            foundUrls.add(url);\n          }\n        }\n      });\n    }\n\n    // Look for any quoted URLs containing streaming domains\n    const quotedUrlMatches = html.match(/[\"']https?:\\/\\/[^\"']+[\"']/gi);\n    if (quotedUrlMatches) {\n      quotedUrlMatches.forEach(quotedUrl => {\n        const url = quotedUrl.replace(/[\"']/g, '');\n        if (streamingDomains.some(domain => url.toLowerCase().includes(domain))) {\n          foundUrls.add(url);\n        }\n      });\n    }\n\n    // Look for JavaScript variables or data containing streaming URLs\n    const jsVarMatches = html.match(/(?:var|let|const|=)\\s*[^=]*=\\s*[\"']([^\"']*(?:streamlare|streamtape|doodstream|mixdrop|upstream|streamwish|filelions|vtube|vidsrc|embedsito|vidcloud|uptostream)[^\"']*)[\"']/gi);\n    if (jsVarMatches) {\n      jsVarMatches.forEach(jsVar => {\n        const urlMatch = jsVar.match(/[\"']([^\"']*(?:streamlare|streamtape|doodstream|mixdrop|upstream|streamwish|filelions|vtube|vidsrc|embedsito|vidcloud|uptostream)[^\"']*)[\"']/i);\n        if (urlMatch && urlMatch[1]) {\n          let url = urlMatch[1];\n          if (url.startsWith('//')) {\n            url = 'https:' + url;\n          }\n          if (url.startsWith('http')) {\n            foundUrls.add(url);\n          }\n        }\n      });\n    }\n\n    // Convert Set to Array and sort by domain for better organization\n    const filteredUrls = Array.from(foundUrls)\n      .filter(url => url.startsWith('http')) // Only valid HTTP URLs\n      .sort((a, b) => {\n        // Sort by domain name for better organization\n        const domainA = a.match(/\\/\\/([^/]+)/)?.[1] || '';\n        const domainB = b.match(/\\/\\/([^/]+)/)?.[1] || '';\n        return domainA.localeCompare(domainB);\n      });\n\n    movieData.streamingUrls = filteredUrls;\n    console.log(`Found ${filteredUrls.length} streaming URLs for: ${movieData.title}`);\n    \n    if (filteredUrls.length > 0) {\n      console.log('Streaming URLs found:', filteredUrls);\n    }\n    \n  } catch (error) {\n    console.error('Error parsing HTML for:', movieData.title, error);\n  }\n\n  results.push(movieData);\n}\n\nreturn results;"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -160,
+        -48
+      ],
+      "id": "275f3d4c-8fff-4dab-9842-a68c74ff1dfc",
+      "name": "Fetch each Movie"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Transform accumulated results from the completed loop\nconst items = $input.all(); // Get all accumulated items from the loop\nconst transformedItems = [];\n\nconsole.log(`Column Structure received ${items.length} items from completed loop`);\n\nfor (const item of items) {\n  try {\n    // The item structure comes from \"Fetch each Movie\" node\n    // Each item should have the movie data and streamingUrls\n    const movieData = item.json.title?.json || {};\n    const streamingUrls = item.json.streamingUrls || [];\n    \n    // Create the output object with all required columns\n    const transformedItem = {\n      title: movieData.title || 'Unknown',\n      url: movieData.url || '',\n      source: movieData.source || '',\n      year: movieData.year || '',\n      poster: movieData.poster || '',\n      quality: movieData.quality || '',\n      language: movieData.language || '',\n      streamingUrls: streamingUrls\n    };\n    \n    console.log('Transformed item:', transformedItem.title, 'with', streamingUrls.length, 'streaming URLs');\n    transformedItems.push(transformedItem);\n    \n  } catch (error) {\n    console.error('Error transforming item:', error, 'Item data:', JSON.stringify(item, null, 2));\n    // Add a default item in case of error\n    transformedItems.push({\n      title: 'Error',\n      url: '',\n      source: '',\n      year: '',\n      poster: '',\n      quality: '',\n      language: '',\n      streamingUrls: []\n    });\n  }\n}\n\nconsole.log(`Column Structure processed ${transformedItems.length} total items`);\nreturn transformedItems;"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        64,
+        -48
+      ],
+      "id": "a288bc26-6e39-4a47-9321-8aa205eb7093",
+      "name": "Column Structure"
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ {\n  \"query\": $('Extract Parameters').first().json.query,\n  \"sources\": [\"5movierulz.villas\", \"ibomma.foo\"],\n  \"results\": [\n    ...$('Column Structure').all().map(movie => ({\n      \"title\": movie.json.title,\n      \"url\": movie.json.url,\n      \"source\": movie.json.source,\n      \"year\": movie.json.year,\n      \"poster\": movie.json.poster,\n      \"quality\": movie.json.quality,\n      \"language\": movie.json.language,\n      \"streamingUrls\": movie.json.streamingUrls,\n      \"rank\": movie.json.rank\n    })),\n    ...$('Parse Ibomma').all().map(movie => ({\n      \"title\": movie.json.title,\n      \"url\": movie.json.url,\n      \"source\": movie.json.source,\n      \"year\": movie.json.year,\n      \"poster\": movie.json.poster,\n      \"quality\": movie.json.quality || \"\",\n      \"language\": movie.json.language,\n      \"streamingUrls\": movie.json.streamingUrls || [],\n      \"rank\": movie.json.rank\n    }))\n  ]\n} }}",
+        "options": {}
+      },
+      "id": "9de4da99-86f3-4e4c-b2e4-aa88b3adf3c7",
+      "name": "Respond to Webhook",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [
+        512,
+        64
+      ]
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "movie-downloader",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "329f1e42-3ea6-4222-8262-1e2c480e4532",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [
+        -1040,
+        608
+      ],
+      "webhookId": "movie-downloader"
+    },
+    {
+      "parameters": {
+        "functionCode": "// Extract movie download request data from webhook\n// Handle both direct JSON and nested body structure\nlet requestData = $json;\n\n// If data is nested in body, extract it\nif ($json.body && typeof $json.body === 'string') {\n  try {\n    requestData = JSON.parse($json.body);\n  } catch (e) {\n    requestData = $json.body;\n  }\n} else if ($json.body && typeof $json.body === 'object') {\n  requestData = $json.body;\n}\n\n// Extract the actual data\nconst movieUrl = requestData.movieUrl || $json.movieUrl;\nconst title = requestData.title || $json.title || 'Unknown Movie';\nconst action = requestData.action || $json.action || 'download';\nconst outputFormat = requestData.outputFormat || $json.outputFormat || 'mp4';\n\nconsole.log('Received webhook data:', JSON.stringify($json, null, 2));\nconsole.log('Extracted movieUrl:', movieUrl);\nconsole.log('Extracted title:', title);\n\n// Validate input\nif (!movieUrl) {\n  console.log('Available data keys:', Object.keys($json));\n  throw new Error(`Movie URL is required. Received data: ${JSON.stringify($json)}`);\n}\n\n// Check if URL is from supported sources\nconst supportedSources = ['ibomma', '5movierulz', 'movierulz'];\nconst isSupported = supportedSources.some(source => \n  movieUrl.toLowerCase().includes(source)\n);\n\nif (!isSupported) {\n  throw new Error('Download is only supported for iBomma and MovieRulz sources');\n}\n\n// Prepare Python script execution parameters\nconst pythonScriptPath = '/Users/vamsi/Desktop/Movie_Agent/github_dir/video_extraction/simple_video_extractor.py';\nconst cleanTitle = title.replace(/[^a-zA-Z0-9\\s]/g, '').replace(/\\s+/g, '_');\nconst outputFileName = `${cleanTitle}.${outputFormat}`;\n\nreturn {\n  movieUrl,\n  title,\n  action,\n  outputFormat,\n  pythonScriptPath,\n  outputFileName,\n  timestamp: new Date().toISOString(),\n  status: 'initialized',\n  debug: {\n    originalData: $json,\n    extractedData: requestData\n  }\n};"
+      },
+      "id": "0026dc29-2c8d-439d-8368-6c03e4312b98",
+      "name": "Process Request",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [
+        -816,
+        608
+      ]
+    },
+    {
+      "parameters": {
+        "language": "python",
+        "pythonCode": "import requests\nimport subprocess\nimport sys\nimport os\n\n# Get the movie data from the previous node\nmovie_url = _input.first()['json']['movieUrl']\ntitle = _input.first()['json']['title']\noutput_filename = _input.first()['json']['outputFileName']\n\nprint(f\"Starting download for: {title}\")\nprint(f\"URL: {movie_url}\")\nprint(f\"Output: {output_filename}\")\n\n# Download the Python script from GitHub\nscript_url = 'https://raw.githubusercontent.com/vamsi061/Movie-search-n8n/main/scripts/simple_video_extractor.py'\nresponse = requests.get(script_url)\n\nif response.status_code == 200:\n    # Save the script to a temporary file\n    script_path = '/tmp/simple_video_extractor.py'\n    with open(script_path, 'w') as f:\n        f.write(response.text)\n    \n    print(\"Script downloaded successfully\")\n    \n    # Execute the script\n    try:\n        result = subprocess.run([\n            sys.executable, script_path, \n            movie_url, \n            '--download', \n            '--output', output_filename\n        ], capture_output=True, text=True, timeout=300)\n        \n        stdout = result.stdout\n        stderr = result.stderr\n        exit_code = result.returncode\n        \n        print(f\"Script execution completed with exit code: {exit_code}\")\n        print(f\"STDOUT: {stdout}\")\n        if stderr:\n            print(f\"STDERR: {stderr}\")\n        \n        return {\n            'status': 'completed' if exit_code == 0 else 'error',\n            'exit_code': exit_code,\n            'stdout': stdout,\n            'stderr': stderr,\n            'movie_url': movie_url,\n            'title': title,\n            'output_filename': output_filename\n        }\n        \n    except subprocess.TimeoutExpired:\n        return {\n            'status': 'error',\n            'message': 'Download timeout after 5 minutes',\n            'movie_url': movie_url,\n            'title': title\n        }\n    except Exception as e:\n        return {\n            'status': 'error',\n            'message': f'Execution error: {str(e)}',\n            'movie_url': movie_url,\n            'title': title\n        }\nelse:\n    return {\n        'status': 'error',\n        'message': f'Failed to download script from GitHub: {response.status_code}',\n        'movie_url': movie_url,\n        'title': title\n    }"
+      },
+      "id": "9ece9eae-3bbf-4cf8-9fa3-d83a954a2926",
+      "name": "Execute Python Download",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -592,
+        608
+      ]
+    },
+    {
+      "parameters": {
+        "functionCode": "// Process the Python Code node output\nconst result = $json;\n\n// Check if we already have a processed result from Python Code node\nif (result.status) {\n  // Result is already processed by Python Code node\n  const stdout = result.stdout || '';\n  const stderr = result.stderr || '';\n  const exitCode = result.exit_code || 0;\n  \n  // Parse progress information from stdout\n  const lines = stdout.split('\\n').filter(line => line.trim());\n  const progressInfo = [];\n  let fileSize = null;\n  let downloadProgress = null;\n  \n  // Extract useful information from output\n  lines.forEach(line => {\n    // Extract file size information\n    const sizeMatch = line.match(/File size: ([\\d.]+) MB \\(([\\d,]+) bytes\\)/);\n    if (sizeMatch) {\n      fileSize = {\n        mb: parseFloat(sizeMatch[1]),\n        bytes: parseInt(sizeMatch[2].replace(/,/g, ''))\n      };\n    }\n    \n    // Extract progress information\n    const progressMatch = line.match(/Progress: ([\\d.]+)% \\(([\\d.]+)\\/([\\d.]+) MB\\)/);\n    if (progressMatch) {\n      downloadProgress = {\n        percentage: parseFloat(progressMatch[1]),\n        downloadedMB: parseFloat(progressMatch[2]),\n        totalMB: parseFloat(progressMatch[3])\n      };\n    }\n    \n    // Add line to progress info\n    if (line.trim()) {\n      progressInfo.push({\n        message: line.trim(),\n        timestamp: new Date().toISOString()\n      });\n    }\n  });\n  \n  // Include stderr if there are errors\n  if (stderr && stderr.trim()) {\n    progressInfo.push({\n      message: `Error: ${stderr.trim()}`,\n      timestamp: new Date().toISOString(),\n      type: 'error'\n    });\n  }\n  \n  return {\n    status: result.status,\n    message: result.message || (result.status === 'completed' ? 'Movie downloaded successfully' : 'Download failed'),\n    exitCode: exitCode,\n    fileSize,\n    downloadProgress,\n    progressInfo,\n    stdout: stdout.substring(0, 1000), // Limit stdout size\n    stderr: stderr.substring(0, 500),  // Limit stderr size\n    timestamp: new Date().toISOString(),\n    movieUrl: result.movie_url,\n    title: result.title,\n    outputFileName: result.output_filename\n  };\n} else {\n  // Fallback for unexpected format\n  return {\n    status: 'error',\n    message: 'Unexpected response format from Python execution',\n    timestamp: new Date().toISOString(),\n    rawResult: result\n  };\n}"
+      },
+      "id": "a1eba5e2-4426-4e31-b413-2b768a770390",
+      "name": "Process Download Result",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [
+        -368,
+        608
+      ]
+    },
+    {
+      "parameters": {
+        "functionCode": "// Handle errors and send error response\nconst error = $json.error || 'Unknown error occurred';\nconst movieUrl = $('Process Request').item?.json?.movieUrl || 'Unknown';\nconst title = $('Process Request').item?.json?.title || 'Unknown';\n\nreturn {\n  status: 'error',\n  message: `Download failed: ${error}`,\n  error: error,\n  movieUrl,\n  title,\n  timestamp: new Date().toISOString()\n};"
+      },
+      "id": "bd817ec6-6fe0-43bd-909a-c5e8179dace3",
+      "name": "Handle Error",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [
+        -368,
+        800
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ $json }}",
+        "options": {}
+      },
+      "id": "1b67f797-4590-4f87-9a95-3f70dcf0c65c",
+      "name": "Respond with Error",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [
+        -160,
+        800
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ $json }}",
+        "options": {}
+      },
+      "id": "9e44ecd2-7da0-4ddb-910c-a49b8fdd7e39",
+      "name": "Respond to Webhook1",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [
+        -160,
+        608
+      ]
+    }
+  ],
+  "pinData": {
+    "Webhook Trigger": [
+      {
+        "json": {
+          "headers": {
+            "host": "n8n-instance-vnyx.onrender.com",
+            "user-agent": "Movie-Search-UI/1.0",
+            "content-length": "15",
+            "accept": "application/json",
+            "accept-encoding": "gzip, br",
+            "accept-language": "*",
+            "cdn-loop": "cloudflare; loops=1",
+            "cf-connecting-ip": "54.89.4.160",
+            "cf-ipcountry": "US",
+            "cf-ray": "97e052744c3dc651-SEA",
+            "cf-visitor": "{\"scheme\":\"https\"}",
+            "content-type": "application/json",
+            "render-proxy-ttl": "4",
+            "rndr-id": "bdec2058-6b4d-413b",
+            "sec-fetch-mode": "cors",
+            "true-client-ip": "54.89.4.160",
+            "x-forwarded-for": "54.89.4.160, 172.71.150.30, 10.214.40.38",
+            "x-forwarded-proto": "https",
+            "x-request-start": "1757689726232729",
+            "x-vercel-id": "bom1::lngmv-1757689725917-38668aba709b"
+          },
+          "params": {},
+          "query": {},
+          "body": {
+            "query": "rrr"
+          },
+          "webhookUrl": "http://localhost:5678/webhook/movie-scraper-villas",
+          "executionMode": "production"
+        }
+      }
+    ]
+  },
+  "connections": {
+    "Merge Results": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Ibomma": {
+      "main": [
+        [
+          {
+            "node": "Merge Results",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Parse Movierulz": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Items",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch Ibomma": {
+      "main": [
+        [
+          {
+            "node": "Parse Ibomma",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch Movierulz": {
+      "main": [
+        [
+          {
+            "node": "Parse Movierulz",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract Parameters": {
+      "main": [
+        [
+          {
+            "node": "Fetch Ibomma",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Fetch Movierulz",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook Trigger": {
+      "main": [
+        [
+          {
+            "node": "Extract Parameters",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Loop Over Items": {
+      "main": [
+        [
+          {
+            "node": "Column Structure",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "HTTP Request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP Request": {
+      "main": [
+        [
+          {
+            "node": "Fetch each Movie",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch each Movie": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Items",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Column Structure": {
+      "main": [
+        [
+          {
+            "node": "Merge Results",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Process Request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Process Request": {
+      "main": [
+        [
+          {
+            "node": "Execute Python Download",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Execute Python Download": {
+      "main": [
+        [
+          {
+            "node": "Process Download Result",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Handle Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Process Download Result": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Handle Error": {
+      "main": [
+        [
+          {
+            "node": "Respond with Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "callerPolicy": "workflowsFromSameOwner"
+  },
+  "versionId": "17a59508-74d4-4ea8-b85e-8d72aa49a639",
+  "meta": {
+    "instanceId": "dc87a5adb517f95d046446a27d79b2ab8eed35fb3fdbf39e68be7adef7b16ad3"
+  },
+  "id": "Y5JQ6GTW5TmDtHF1",
+  "tags": []
+}
